@@ -22,3 +22,15 @@ class UserRepository:
         await self.db.commit()
         await self.db.refresh(user)
         return user
+
+    async def update_password(self, user: User, hashed_password: str) -> None:
+        user.hashed_password = hashed_password
+        await self.db.commit()
+
+    async def verify_user_email(self, user: User) -> None:
+        user.is_email_verified = True
+        await self.db.commit()
+
+    async def find_by_id(self, user_id: int) -> User | None:
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        return result.scalar_one_or_none()

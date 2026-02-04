@@ -7,6 +7,9 @@ from schemas.auth_login import UserLoginRequest, UserLoginResponse
 from schemas.auth_schemas import UserRegisterRequest
 from utils.jwt_handler import create_access_token, create_refresh_token, verify_token
 from utils.token_blacklist import blacklist_token
+from utils.otp_handler import generate_otp, store_otp, verify_otp
+from utils.email_sender import send_otp_email
+from schemas.reset_password import ResetPasswordRequest
 from dtos.user_login_response import UserLoginResponse
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -126,3 +129,59 @@ class AuthService:
             access_token=new_access_token,
             refresh_token=new_refresh_token,
         )
+
+    async def forgot_password(self, email: str) -> None:
+        user = await self.user_repository.find_by_email(email)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Email not found",
+            )
+
+        otp = generate_otp()
+        await store_otp(email, otp)
+        await send_otp_email(email, otp)
+
+    async def reset_password(self, request: ResetPasswordRequest) -> None:
+        is_valid = await verify_otp(request.email, request.otp)
+        if not is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired OTP",
+            )
+
+        user = await self.user_repository.find_by_email(request.email)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+
+        hashed_password = pwd_context.hash(request.new_password)
+        await self.user_repository.update_password(user, hashed_password)
+
+    async def verify_email(self, request: ResetPasswordRequest) -> None:
+        is_valid = await verify_otp(request.email, request.otp)
+        if not is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired OTP",
+            )
+
+        user = await self.user_repository.find_by_email(request.email)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+
+        await self.user_repository.verify_user_email(user)
+
+    async def get_user_info(self, user_id: int) -> User:
+        user = await self.user_repository.find_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+        return user
