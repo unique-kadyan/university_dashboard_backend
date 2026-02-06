@@ -5,6 +5,7 @@ from configs.db_config import create_schema, create_tables, engine
 
 # Import controllers
 from controllers.authentication_authroziation_controller import router as auth_router
+from controllers.students_management_controller import router as students_router
 
 
 @asynccontextmanager
@@ -27,6 +28,7 @@ app = FastAPI(
 
 # Register routers
 app.include_router(auth_router)
+app.include_router(students_router)
 
 
 @app.get("/")
