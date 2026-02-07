@@ -3,19 +3,15 @@ from fastapi import FastAPI
 from uvicorn import uvicorn
 from configs.db_config import create_schema, create_tables, engine
 
-# Import controllers
 from controllers.authentication_authroziation_controller import router as auth_router
 from controllers.students_management_controller import router as students_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan handler for startup and shutdown events."""
-    # Startup
     await create_schema()
     await create_tables()
     yield
-    # Shutdown
     await engine.dispose()
 
 
@@ -26,7 +22,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Register routers
 app.include_router(auth_router)
 app.include_router(students_router)
 

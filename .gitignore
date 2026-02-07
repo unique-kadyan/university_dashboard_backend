@@ -4,3 +4,15 @@ __pycache__/
 *.session
 .venv/
 venv/
+sessions/
+*.log
+*.db
+*.sqlite
+*.sqlite3
+*.env
+*.env.*
+.idea/
+.vscode/
+session_name.session
+session.*
+session_*.session

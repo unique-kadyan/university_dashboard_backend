@@ -3,7 +3,7 @@ import string
 from configs.redis_config import redis_client
 
 OTP_PREFIX = "otp:"
-OTP_EXPIRY_SECONDS = 300  # 5 minutes
+OTP_EXPIRY_SECONDS = 300
 
 
 def generate_otp(length: int = 6) -> str:

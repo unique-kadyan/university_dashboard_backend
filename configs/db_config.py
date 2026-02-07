@@ -21,18 +21,15 @@ Base = declarative_base()
 
 
 async def create_schema():
-    """Create the database schema if it doesn't exist."""
     async with engine.begin() as conn:
         await conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {DB_SCHEMA}"))
 
 
 async def create_tables():
-    """Create all tables in the schema."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
 
 async def get_db():
-    """Dependency to get async database session."""
     async with AsyncSessionLocal() as session:
         yield session
