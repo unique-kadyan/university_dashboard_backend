@@ -2,7 +2,11 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from schemas.student_schemas import (
     PaginatedResponse,
+    StudentAttendanceResponse,
+    StudentDocumentsResponse,
     StudentEnrollmentResponse,
+    StudentFeesResponse,
+    StudentGradesResponse,
     StudentRegisterRequest,
     StudentRegisterResponse,
     StudentResponse,
@@ -152,3 +156,84 @@ async def get_student_enrollments(
             detail="Not authorized to access this student's enrollments",
         )
     return await student_service.get_student_enrollments(id)
+
+
+@router.get(
+    "/{id}/attendance",
+    response_model=StudentAttendanceResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_student_attendance(
+    id: int,
+    current_user: dict = Depends(get_current_user),
+    student_service: StudentService = Depends(),
+):
+    if (
+        current_user["role"] not in ["student", "admin", "faculty", "staff"]
+        and current_user["user_id"] != id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this student's enrollments",
+        )
+    return await student_service.get_student_attendance(id)
+
+@router.get(
+    "/{id}/grades",
+    response_model=StudentGradesResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_student_grades(
+    id: int,
+    current_user: dict = Depends(get_current_user),
+    student_service: StudentService = Depends(),
+):
+    if (
+        current_user["role"] not in ["student", "admin", "faculty", "staff"]
+        and current_user["user_id"] != id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this student's grades",
+        )
+    return await student_service.get_student_grades(id)
+
+@router.get(
+    "/{id}/fees",
+    response_model=StudentFeesResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_student_fees(
+    id: int,
+    current_user: dict = Depends(get_current_user),
+    student_service: StudentService = Depends(),
+):
+    if (
+        current_user["role"] not in ["student", "admin", "faculty", "staff"]
+        and current_user["user_id"] != id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this student's grades",
+        )
+    return await student_service.get_student_fees(id)
+
+@router.get(
+    "/{id}/documents",
+    response_model=StudentDocumentsResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_student_documents(
+    id: int,
+    current_user: dict = Depends(get_current_user),
+    student_service: StudentService = Depends(),
+):
+    if (
+        current_user["role"] not in ["student", "admin", "faculty", "staff"]
+        and current_user["user_id"] != id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this student's documents",
+        )
+    return await student_service.get_student_documents(id)

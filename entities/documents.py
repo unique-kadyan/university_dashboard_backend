@@ -20,6 +20,7 @@ class Document(Base):
     __tablename__ = "documents"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     title = Column(String, nullable=False)
     description = Column(String, nullable=True)
     document_type = Column(Enum(DocumentType), nullable=False)

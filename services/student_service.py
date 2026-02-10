@@ -7,9 +7,17 @@ from entities.students import Student
 from entities.user import User
 from repositories.student_repository import StudentRepository
 from schemas.student_schemas import (
+    AttendanceResponse,
+    DocumentResponse,
     EnrollmentResponse,
+    FeePaymentResponse,
+    GradeResponse,
     PaginatedResponse,
+    StudentAttendanceResponse,
+    StudentDocumentsResponse,
     StudentEnrollmentResponse,
+    StudentFeesResponse,
+    StudentGradesResponse,
     StudentRegisterRequest,
     StudentRegisterResponse,
     StudentResponse,
@@ -234,4 +242,56 @@ class StudentService:
             student_id=student.id,
             user_id=student.user_id,
             enrollments=[EnrollmentResponse.model_validate(e) for e in enrollments],
+        )
+
+    async def get_student_attendance(self, id: int) -> StudentAttendanceResponse:
+        student = await self.student_repository.find_by_id(id)
+        if not student:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Student not found"
+            )
+        records = await self.student_repository.find_attendance_by_student_id(id)
+        return StudentAttendanceResponse(
+            student_id=student.id,
+            user_id=student.user_id,
+            attendance=[AttendanceResponse.model_validate(r) for r in records],
+        )
+
+    async def get_student_grades(self, id: int) -> StudentGradesResponse:
+        student = await self.student_repository.find_by_id(id)
+        if not student:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Student not found"
+            )
+        grades = await self.student_repository.find_grades_by_student_id(id)
+        return StudentGradesResponse(
+            student_id=student.id,
+            user_id=student.user_id,
+            grades=[GradeResponse.model_validate(g) for g in grades],
+        )
+
+    async def get_student_fees(self, id: int) -> StudentFeesResponse:
+        student = await self.student_repository.find_by_id(id)
+        if not student:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Student not found"
+            )
+        fees = await self.student_repository.find_fees_by_student_id(id)
+        return StudentFeesResponse(
+            student_id=student.id,
+            user_id=student.user_id,
+            fees=[FeePaymentResponse.model_validate(f) for f in fees],
+        )
+
+    async def get_student_documents(self, id: int) -> StudentDocumentsResponse:
+        student = await self.student_repository.find_by_id(id)
+        if not student:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Student not found"
+            )
+        documents = await self.student_repository.find_documents_by_user_id(student.user_id)
+        return StudentDocumentsResponse(
+            student_id=student.id,
+            user_id=student.user_id,
+            documents=[DocumentResponse.model_validate(d) for d in documents],
         )

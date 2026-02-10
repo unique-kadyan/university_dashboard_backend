@@ -65,6 +65,96 @@ class StudentEnrollmentResponse(BaseModel):
     enrollments: List[EnrollmentResponse]
 
 
+class AttendanceResponse(BaseModel):
+    id: int
+    enrollment_id: int
+    student_id: int
+    date: datetime
+    status: str
+    marked_by: int
+    remarks: Optional[str] = None
+    marked_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class StudentAttendanceResponse(BaseModel):
+    student_id: int
+    user_id: int
+    attendance: List[AttendanceResponse]
+
+
+class GradeResponse(BaseModel):
+    id: int
+    enrollment_id: int
+    course_id: int
+    assessment_id: int
+    marks_obtained: Decimal
+    remarks: Optional[str] = None
+    graded_by: int
+    graded_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class StudentGradesResponse(BaseModel):
+    student_id: int
+    user_id: int
+    grades: List[GradeResponse]
+
+
+class FeePaymentResponse(BaseModel):
+    id: int
+    student_id: int
+    fee_structure_id: int
+    amount_paid: Decimal
+    payment_date: date
+    payment_mode: str
+    transaction_id: str
+    reciept_number: str
+    late_fee: Optional[Decimal] = None
+    discount: Optional[Decimal] = None
+    payment_status: str
+    remarks: Optional[str] = None
+    processed_by: int
+
+    class Config:
+        from_attributes = True
+
+
+class StudentFeesResponse(BaseModel):
+    student_id: int
+    user_id: int
+    fees: List[FeePaymentResponse]
+
+
+class DocumentResponse(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+    document_type: str
+    file_path: str
+    file_name: str
+    file_size: int
+    mime_type: Optional[str] = None
+    uploaded_by: int
+    is_public: bool
+    access_level: Optional[str] = None
+    tags: Optional[list] = None
+    uploaded_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class StudentDocumentsResponse(BaseModel):
+    student_id: int
+    user_id: int
+    documents: List[DocumentResponse]
+
+
 class StudentRegisterRequest(BaseModel):
     email: EmailStr
     user_name: str

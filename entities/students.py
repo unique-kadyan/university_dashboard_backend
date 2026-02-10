@@ -32,7 +32,7 @@ class Student(Base):
     created_at : Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=True)
     updated_at = Column(Date, nullable=True)
     
-    --table_args__ = (
+    __table_args__ = (
         Index('idx_students_user_id', 'user_id'),
         Index('idx_students_student_id', 'Student_id'),
         Index('idx_program_id', 'program_id'),

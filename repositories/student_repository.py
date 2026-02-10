@@ -4,7 +4,11 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from configs.db_config import get_db
 from entities.students import Student
+from entities.attendance import Attendance
 from entities.enrollments import Enrollment
+from entities.documents import Document
+from entities.fee_payments import FeePayment
+from entities.grades import Grades
 from entities.user import User
 from entities.programs import Program
 from entities.departments import Department
@@ -53,6 +57,32 @@ class StudentRepository:
     async def find_enrollments_by_student_id(self, student_id: int) -> List[Enrollment]:
         result = await self.db.execute(
             select(Enrollment).where(Enrollment.student_id == student_id)
+        )
+        return list(result.scalars().all())
+
+    async def find_attendance_by_student_id(self, student_id: int) -> List[Attendance]:
+        result = await self.db.execute(
+            select(Attendance).where(Attendance.student_id == student_id)
+        )
+        return list(result.scalars().all())
+
+    async def find_grades_by_student_id(self, student_id: int) -> List[Grades]:
+        result = await self.db.execute(
+            select(Grades)
+            .join(Enrollment, Grades.enrollment_id == Enrollment.id)
+            .where(Enrollment.student_id == student_id)
+        )
+        return list(result.scalars().all())
+
+    async def find_fees_by_student_id(self, student_id: int) -> List[FeePayment]:
+        result = await self.db.execute(
+            select(FeePayment).where(FeePayment.student_id == student_id)
+        )
+        return list(result.scalars().all())
+
+    async def find_documents_by_user_id(self, user_id: int) -> List[Document]:
+        result = await self.db.execute(
+            select(Document).where(Document.uploaded_by == user_id)
         )
         return list(result.scalars().all())
 
@@ -135,5 +165,4 @@ class StudentRepository:
         student.is_active = False
         await self.db.merge(student)
         await self.db.commit()
-        await self.db.flush()
         await self.db.refresh(student)
