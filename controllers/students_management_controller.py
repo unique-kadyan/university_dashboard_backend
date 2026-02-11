@@ -1,7 +1,8 @@
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
 from schemas.student_schemas import (
     PaginatedResponse,
+    PhotoUploadResponse,
     StudentAttendanceResponse,
     StudentDocumentsResponse,
     StudentEnrollmentResponse,
@@ -10,6 +11,7 @@ from schemas.student_schemas import (
     StudentRegisterRequest,
     StudentRegisterResponse,
     StudentResponse,
+    StudentSearchResult,
 )
 from services.student_service import StudentService
 from utils.auth_dependency import get_current_user
@@ -64,6 +66,49 @@ async def create_student(
     student_service: StudentService = Depends(),
 ):
     return await student_service.create_student(student_data)
+
+
+@router.get(
+    "/search",
+    response_model=List[StudentSearchResult],
+    status_code=status.HTTP_200_OK,
+)
+async def search_students(
+    q: str = Query(..., min_length=1, description="Search by name, email, student ID, or admission number"),
+    limit: int = Query(20, ge=1, le=100, description="Max results to return"),
+    current_user: dict = Depends(get_current_user),
+    student_service: StudentService = Depends(),
+):
+    return await student_service.search_students(q, limit)
+
+
+@router.get("/export")
+async def export_students(
+    format: str = Query("csv", description="Export format: csv or xlsx"),
+    student_status: Optional[str] = Query(None, description="Filter by status"),
+    batch_year: Optional[int] = Query(None, description="Filter by batch year"),
+    department_id: Optional[int] = Query(None, description="Filter by department ID"),
+    program_id: Optional[int] = Query(None, description="Filter by program ID"),
+    current_user: dict = Depends(get_current_user),
+    student_service: StudentService = Depends(),
+):
+    if current_user["role"] not in ["admin", "staff"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin and staff can export student data",
+        )
+    if format not in ("csv", "xlsx"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid format. Use 'csv' or 'xlsx'",
+        )
+    return await student_service.export_students(
+        format=format,
+        student_status=student_status,
+        batch_year=batch_year,
+        department_id=department_id,
+        program_id=program_id,
+    )
 
 
 @router.get("/{id}", response_model=StudentResponse, status_code=status.HTTP_200_OK)
@@ -237,3 +282,24 @@ async def get_student_documents(
             detail="Not authorized to access this student's documents",
         )
     return await student_service.get_student_documents(id)
+
+@router.post(
+    "/{id}/upload-photo",
+    response_model=PhotoUploadResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def upload_student_photo(
+    id: int,
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+    student_service: StudentService = Depends(),
+):
+    if (
+        current_user["role"] not in ["admin", "staff"]
+        and current_user["user_id"] != id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to upload photo for this student",
+        )
+    return await student_service.upload_student_photo(id, file)

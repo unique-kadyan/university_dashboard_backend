@@ -51,16 +51,70 @@ Database session is injected only at the repository level via FastAPI's dependen
 
 ### Authentication (`/api/v1/auth`)
 
-| Method | Endpoint           | Description                        | Auth Required |
-|--------|--------------------|------------------------------------|---------------|
-| POST   | `/register`        | Register a new user                | No            |
-| POST   | `/login`           | Login and get JWT tokens           | No            |
-| POST   | `/logout`          | Revoke access token                | Yes           |
-| POST   | `/refresh`         | Refresh access token               | Yes (refresh) |
-| POST   | `/forgot-password` | Send OTP to email for password reset | No          |
-| POST   | `/reset-password`  | Reset password using OTP           | No            |
-| POST   | `/verify-email`    | Verify email using OTP             | No            |
-| GET    | `/me`              | Get current user info              | Yes           |
+| Method | Endpoint           | Description                          | Auth Required |
+|--------|--------------------|------------------------------------- |---------------|
+| POST   | `/register`        | Register a new user                  | No            |
+| POST   | `/login`           | Login and get JWT tokens             | No            |
+| POST   | `/logout`          | Revoke access token                  | Yes           |
+| POST   | `/refresh`         | Refresh access token                 | Yes (refresh) |
+| POST   | `/forgot-password` | Send OTP to email for password reset | No            |
+| POST   | `/reset-password`  | Reset password using OTP             | No            |
+| POST   | `/verify-email`    | Verify email using OTP               | No            |
+| GET    | `/me`              | Get current user info                | Yes           |
+
+### Students Management (`/api/v1/students`)
+
+| Method | Endpoint              | Description                                      | Auth Required |
+|--------|-----------------------|--------------------------------------------------|---------------|
+| GET    | `/`                   | List all students (paginated, filterable)         | Yes           |
+| POST   | `/`                   | Register a new student (creates user + student)   | Yes           |
+| GET    | `/search`             | Search students by name, email, ID, admission no. | Yes           |
+| GET    | `/export`             | Export students as CSV or Excel                   | Yes (admin/staff) |
+| GET    | `/{id}`               | Get student by ID                                 | Yes           |
+| PUT    | `/{id}`               | Update student details                            | Yes           |
+| DELETE | `/{id}`               | Soft delete student (sets inactive)               | Yes           |
+| GET    | `/{id}/profile`       | Get student profile                               | Yes           |
+| GET    | `/{id}/enrollments`   | Get student enrollments                           | Yes           |
+| GET    | `/{id}/attendance`    | Get student attendance records                    | Yes           |
+| GET    | `/{id}/grades`        | Get student grades (via enrollments)              | Yes           |
+| GET    | `/{id}/fees`          | Get student fee payments                          | Yes           |
+| GET    | `/{id}/documents`     | Get student documents                             | Yes           |
+| POST   | `/{id}/upload-photo`  | Upload student profile photo                      | Yes           |
+
+**GET `/` query parameters:**
+
+| Parameter        | Type   | Default | Description                              |
+|------------------|--------|---------|------------------------------------------|
+| `page`           | int    | 1       | Page number (min 1)                      |
+| `page_size`      | int    | 10      | Items per page (1-100)                   |
+| `student_status` | string | null    | Filter by status                         |
+| `department_id`  | int    | null    | Filter by department                     |
+| `program_id`     | int    | null    | Filter by program                        |
+| `batch_year`     | int    | null    | Filter by batch year                     |
+| `semester`       | int    | null    | Filter by semester                       |
+| `category`       | string | null    | Filter by category                       |
+| `search`         | string | null    | Search by student ID or admission number |
+
+**GET `/search` query parameters:**
+
+| Parameter | Type   | Default | Description                                          |
+|-----------|--------|---------|------------------------------------------------------|
+| `q`       | string | —       | Search term (matches name, email, student ID, adm. no.) |
+| `limit`   | int    | 20      | Max results (1-100)                                  |
+
+**GET `/export` query parameters:**
+
+| Parameter        | Type   | Default | Description                       |
+|------------------|--------|---------|-----------------------------------|
+| `format`         | string | csv     | Export format: `csv` or `xlsx`    |
+| `student_status` | string | null    | Filter by status                  |
+| `batch_year`     | int    | null    | Filter by batch year              |
+| `department_id`  | int    | null    | Filter by department              |
+| `program_id`     | int    | null    | Filter by program                 |
+
+**POST `/{id}/upload-photo`:**
+
+Accepts a multipart file upload (JPEG, PNG, or WebP, max 5 MB). Updates the user's profile picture.
 
 ## Setup
 
@@ -108,7 +162,7 @@ SMTP_FROM_EMAIL=your-email@gmail.com
 ### Installation
 
 ```bash
-pip install fastapi uvicorn sqlalchemy asyncpg psycopg2-binary pydantic[email] python-jose[cryptography] passlib[bcrypt] python-dotenv redis
+pip install fastapi uvicorn sqlalchemy asyncpg psycopg2-binary pydantic[email] python-jose[cryptography] passlib[bcrypt] python-dotenv redis python-multipart openpyxl
 ```
 
 ### Run

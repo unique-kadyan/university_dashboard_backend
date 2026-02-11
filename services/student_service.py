@@ -1,7 +1,13 @@
+import csv
+import io
 import math
+import os
+import uuid
 from datetime import date
-from typing import Optional
-from fastapi import Depends, HTTPException, status
+from typing import List, Optional
+from fastapi import Depends, HTTPException, UploadFile, status
+from fastapi.responses import StreamingResponse
+from openpyxl import Workbook
 from passlib.context import CryptContext
 from entities.students import Student
 from entities.user import User
@@ -13,6 +19,7 @@ from schemas.student_schemas import (
     FeePaymentResponse,
     GradeResponse,
     PaginatedResponse,
+    PhotoUploadResponse,
     StudentAttendanceResponse,
     StudentDocumentsResponse,
     StudentEnrollmentResponse,
@@ -21,6 +28,7 @@ from schemas.student_schemas import (
     StudentRegisterRequest,
     StudentRegisterResponse,
     StudentResponse,
+    StudentSearchResult,
 )
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -294,4 +302,133 @@ class StudentService:
             student_id=student.id,
             user_id=student.user_id,
             documents=[DocumentResponse.model_validate(d) for d in documents],
+        )
+
+    async def search_students(
+        self, query: str, limit: int = 20
+    ) -> List[StudentSearchResult]:
+        rows = await self.student_repository.search_students(query, limit)
+        return [
+            StudentSearchResult(
+                id=row.id,
+                user_id=row.user_id,
+                Student_id=row.Student_id,
+                admisson_number=row.admisson_number,
+                first_name=row.first_name,
+                last_name=row.last_name,
+                email=row.email,
+                program_id=row.program_id,
+                department_id=row.department_id,
+                batch_year=row.batch_year,
+                semester=row.semester,
+                status=row.status,
+            )
+            for row in rows
+        ]
+
+    EXPORT_COLUMNS = [
+        "Student ID", "Admission Number", "First Name", "Last Name",
+        "Email", "Phone", "Gender", "Date of Birth", "Program ID",
+        "Department ID", "Batch Year", "Semester", "Section", "Category",
+        "Nationality", "Blood Group", "Status", "CGPA", "Admission Date",
+    ]
+
+    async def export_students(
+        self,
+        format: str,
+        student_status: Optional[str] = None,
+        batch_year: Optional[int] = None,
+        department_id: Optional[int] = None,
+        program_id: Optional[int] = None,
+    ) -> StreamingResponse:
+        rows = await self.student_repository.find_all_for_export(
+            student_status=student_status,
+            batch_year=batch_year,
+            department_id=department_id,
+            program_id=program_id,
+        )
+
+        data = [tuple(str(v) if v is not None else "" for v in row) for row in rows]
+
+        if format == "csv":
+            return self._generate_csv(data)
+        return self._generate_excel(data)
+
+    def _generate_csv(self, data: list) -> StreamingResponse:
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(self.EXPORT_COLUMNS)
+        writer.writerows(data)
+        buffer.seek(0)
+        return StreamingResponse(
+            iter([buffer.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=students_export.csv"},
+        )
+
+    def _generate_excel(self, data: list) -> StreamingResponse:
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Students"
+        ws.append(self.EXPORT_COLUMNS)
+        for row in data:
+            ws.append(list(row))
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+        return StreamingResponse(
+            buffer,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=students_export.xlsx"},
+        )
+
+    ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+    MAX_FILE_SIZE = 5 * 1024 * 1024
+
+    async def upload_student_photo(
+        self, id: int, file: UploadFile
+    ) -> PhotoUploadResponse:
+        student = await self.student_repository.find_by_id(id)
+        if not student:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Student not found"
+            )
+
+        if file.content_type not in self.ALLOWED_IMAGE_TYPES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only JPEG, PNG, and WebP images are allowed",
+            )
+
+        contents = await file.read()
+        if len(contents) > self.MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File size must not exceed 5 MB",
+            )
+
+        ext = os.path.splitext(file.filename)[1] if file.filename else ".jpg"
+        unique_name = f"{student.user_id}_{uuid.uuid4().hex}{ext}"
+        upload_dir = os.path.join("uploads", "photos")
+        os.makedirs(upload_dir, exist_ok=True)
+        file_path = os.path.join(upload_dir, unique_name)
+
+        with open(file_path, "wb") as f:
+            f.write(contents)
+
+        user = await self.student_repository.find_user_by_id(student.user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            )
+
+        if user.profile_picture and os.path.exists(user.profile_picture):
+            os.remove(user.profile_picture)
+
+        await self.student_repository.update_user_profile_picture(user, file_path)
+
+        return PhotoUploadResponse(
+            student_id=student.id,
+            user_id=student.user_id,
+            profile_picture=file_path,
         )

@@ -1,6 +1,6 @@
 from typing import Optional, Tuple, List
 from fastapi import Depends
-from sqlalchemy import select, func
+from sqlalchemy import or_, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from configs.db_config import get_db
 from entities.students import Student
@@ -86,6 +86,17 @@ class StudentRepository:
         )
         return list(result.scalars().all())
 
+    async def find_user_by_id(self, user_id: int) -> User | None:
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        return result.scalar_one_or_none()
+
+    async def update_user_profile_picture(self, user: User, file_path: str) -> User:
+        user.profile_picture = file_path
+        await self.db.merge(user)
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+
     async def create_user(self, user: User) -> User:
         self.db.add(user)
         await self.db.flush()
@@ -154,6 +165,80 @@ class StudentRepository:
         students = list(result.scalars().all())
 
         return students, total
+
+    async def search_students(self, query: str, limit: int = 20) -> list:
+        search_term = f"%{query}%"
+        result = await self.db.execute(
+            select(
+                Student.id,
+                Student.user_id,
+                Student.Student_id,
+                Student.admisson_number,
+                User.first_name,
+                User.last_name,
+                User.email,
+                Student.program_id,
+                Student.department_id,
+                Student.batch_year,
+                Student.semester,
+                Student.status,
+            )
+            .join(User, Student.user_id == User.id)
+            .where(
+                or_(
+                    User.first_name.ilike(search_term),
+                    User.last_name.ilike(search_term),
+                    User.email.ilike(search_term),
+                    Student.Student_id.ilike(search_term),
+                    Student.admisson_number.ilike(search_term),
+                )
+            )
+            .order_by(Student.id)
+            .limit(limit)
+        )
+        return list(result.all())
+
+    async def find_all_for_export(
+        self,
+        student_status: Optional[str] = None,
+        batch_year: Optional[int] = None,
+        department_id: Optional[int] = None,
+        program_id: Optional[int] = None,
+    ) -> list:
+        query = select(
+            Student.Student_id,
+            Student.admisson_number,
+            User.first_name,
+            User.last_name,
+            User.email,
+            User.phone,
+            User.gender,
+            User.date_of_birth,
+            Student.program_id,
+            Student.department_id,
+            Student.batch_year,
+            Student.semester,
+            Student.section,
+            Student.category,
+            Student.nationality,
+            Student.blood_group,
+            Student.status,
+            Student.cgpa,
+            Student.admission_date,
+        ).join(User, Student.user_id == User.id)
+
+        if student_status:
+            query = query.where(Student.status == student_status)
+        if batch_year:
+            query = query.where(Student.batch_year == batch_year)
+        if department_id:
+            query = query.where(Student.department_id == department_id)
+        if program_id:
+            query = query.where(Student.program_id == program_id)
+
+        query = query.order_by(Student.id)
+        result = await self.db.execute(query)
+        return list(result.all())
 
     async def update_student(self, student: Student) -> Student:
         await self.db.merge(student)

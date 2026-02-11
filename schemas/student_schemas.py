@@ -155,6 +155,27 @@ class StudentDocumentsResponse(BaseModel):
     documents: List[DocumentResponse]
 
 
+class PhotoUploadResponse(BaseModel):
+    student_id: int
+    user_id: int
+    profile_picture: str
+
+
+class StudentSearchResult(BaseModel):
+    id: int
+    user_id: int
+    Student_id: str
+    admisson_number: str
+    first_name: str
+    last_name: str
+    email: str
+    program_id: int
+    department_id: int
+    batch_year: int
+    semester: int
+    status: str
+
+
 class StudentRegisterRequest(BaseModel):
     email: EmailStr
     user_name: str
