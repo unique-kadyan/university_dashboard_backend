@@ -1,6 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, ForeignKey, Index
-from sqlalchemy.orm import Mapped, mapped_column
-from decimal import Decimal
+from sqlalchemy import Boolean, Column, DateTime, Integer, Numeric, String, ForeignKey, Index, func
 
 from configs.db_config import Base
 
@@ -19,7 +17,7 @@ class LibraryBook(Base):
     department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
     language = Column(String, nullable=True)
     pages = Column(Integer, nullable=True)
-    price = Column(Decimal(10, 2), nullable=True)
+    price = Column(Numeric(10, 2), nullable=True)
     copies_total = Column(Integer, default=1, nullable=False)
     copies_available = Column(Integer, default=1, nullable=False)
     rack_no = Column(String, nullable=True)
@@ -27,9 +25,7 @@ class LibraryBook(Base):
     is_referenced = Column(Boolean, default=False)
     description = Column(String, nullable=True)
     cover_image_url = Column(String, nullable=True)
-    created_at: Mapped[DateTime] = mapped_column(
-        DateTime, default=DateTime.now(), nullable=True
-    )
+    created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, nullable=True)
 
     __table_args__ = (

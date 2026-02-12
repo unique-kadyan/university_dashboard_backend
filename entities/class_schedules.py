@@ -1,6 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, ForeignKey, Index
-from sqlalchemy.orm import Mapped, mapped_column
-
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, ForeignKey, Index, func
 from configs.db_config import Base
 
 
@@ -9,14 +7,12 @@ class ClassSchedule(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     course_offering_id = Column(
-        Integer, ForeignKey("course_offering.id"), nullable=False
+        Integer, ForeignKey("program_courses.id"), nullable=False
     )
     slot_id = Column(Integer, ForeignKey("timetable_slots.id"), nullable=False)
     room_no = Column(String, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at: Mapped[DateTime] = mapped_column(
-        DateTime, default=DateTime.now(), nullable=False
-    )
+    created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, nullable=True)
 
     __table_args__ = (

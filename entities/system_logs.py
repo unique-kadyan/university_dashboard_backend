@@ -1,6 +1,4 @@
-from sqlalchemy import Column, DateTime, Enum, Integer, String, ForeignKey, Index
-from sqlalchemy.orm import Mapped, mapped_column
-
+from sqlalchemy import Column, DateTime, Enum, Integer, String, ForeignKey, Index, func
 
 from configs.db_config import Base
 from enums.log_levels import LogLevel
@@ -17,10 +15,7 @@ class SystemLog(Base):
     stack_trace = Column(String, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     request_id = Column(String, nullable=True)
-    timestamp: Mapped[DateTime] = mapped_column(
-        DateTime, default=DateTime.now(), nullable=False
-    )
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    timestamp = Column(DateTime, default=func.now(), nullable=False)
 
     __table_args__ = (
         Index("idx_system_logs_log_level", "log_level"),

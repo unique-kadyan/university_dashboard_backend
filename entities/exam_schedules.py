@@ -1,5 +1,4 @@
-from sqlalchemy import Column, DateTime, Enum, Integer, String, ForeignKey, Index
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Column, DateTime, Enum, Integer, String, ForeignKey, Index, func
 
 from configs.db_config import Base
 from enums.exam_status import ExamStatus
@@ -15,14 +14,12 @@ class ExamSchedule(Base):
     course_id = Column(Integer, ForeignKey("courses.id"), nullable=False)
     academic_year = Column(String, nullable=False)
     semester = Column(Integer, nullable=False)
-    start_time: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
-    end_time: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
-    result_declaration_date: Mapped[DateTime] = mapped_column(DateTime, nullable=True)
+    start_time = Column(DateTime, nullable=False)
+    end_time = Column(DateTime, nullable=False)
+    result_declaration_date = Column(DateTime, nullable=True)
     location = Column(String, nullable=True)
     status = Column(Enum(ExamStatus), nullable=False)
-    created_at: Mapped[DateTime] = mapped_column(
-        DateTime, default=DateTime.now(), nullable=False
-    )
+    created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, nullable=True)
 
     __table_args__ = (

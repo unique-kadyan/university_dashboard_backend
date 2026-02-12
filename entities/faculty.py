@@ -1,7 +1,5 @@
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, String, func
 from enums.employment_type import EmploymentType
-from datetime import datetime
 from enums.faculty_status import Status
 from configs.db_config import Base
 
@@ -16,16 +14,12 @@ class Faculty(Base):
     designation = Column(String, nullable=False)
     specialization = Column(String, nullable=True)
     qualification = Column(String, nullable=True)
-    date_of_joining: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=True
-    )
+    date_of_joining = Column(DateTime, nullable=True)
     employment_type = Column(EmploymentType, nullable=False)
     experience_years = Column(Integer, nullable=True)
     is_hod = Column(Boolean, default=False)
     status = Column(Status, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=True
-    )
+    created_at = Column(DateTime, default=func.now(), nullable=True)
     updated_at = Column(DateTime, nullable=True)
 
     __table_args__ = (

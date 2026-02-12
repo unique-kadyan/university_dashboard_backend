@@ -3,7 +3,7 @@ import io
 import math
 import os
 import uuid
-from datetime import date
+from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import Depends, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
@@ -151,7 +151,7 @@ class StudentService:
             postal_code=student_data.postal_code,
             is_active=True,
             is_verified=False,
-            created_at=date.today(),
+            created_at=datetime.now(timezone.utc),
         )
         created_user = await self.student_repository.create_user(user)
 

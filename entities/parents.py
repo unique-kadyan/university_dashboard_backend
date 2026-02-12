@@ -1,21 +1,17 @@
-from decimal import Decimal
 from sqlalchemy import (
     Column,
-    Date,
     DateTime,
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
+    func,
 )
-from sqlalchemy.orm import Mapped, mapped_column
-from datetime import Date, datetime
-
 from configs.db_config import Base
 
 
 class Parent(Base):
-
     __tablename__ = "parents"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -31,9 +27,9 @@ class Parent(Base):
     state = Column(String, nullable=True)
     country = Column(String, nullable=True)
     postal_code = Column(Integer, nullable=True)
-    annual_income = Column(Decimal, nullable=True)
-    created_at: Mapped[DateTime] = mapped_column(default=DateTime.now(), nullable=True)
-    updated_at = Column(Date, nullable=True)
+    annual_income = Column(Numeric(12, 2), nullable=True)
+    created_at = Column(DateTime, default=func.now(), nullable=True)
+    updated_at = Column(DateTime, nullable=True)
 
     __table_args__ = (
         Index("idx_parents_user_id", "user_id"),

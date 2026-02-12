@@ -1,6 +1,6 @@
 # University Dashboard Backend
 
-A comprehensive Student Management System built with FastAPI, PostgreSQL, and Redis. Provides REST APIs for managing students, faculty, courses, exams, attendance, fees, hostels, library, and more.
+A comprehensive Student Management System built with FastAPI, PostgreSQL, and Redis. Provides REST APIs for managing students, faculty, departments, programs, courses, enrollments, attendance, assessments, grades, fees, hostels, library, and more.
 
 ## Tech Stack
 
@@ -23,8 +23,32 @@ StudentManagement/
 │   ├── redis_config.py            # Redis connection
 │   └── email_config.py            # SMTP settings
 ├── controllers/                   # API route handlers
+│   ├── authentication_authroziation_controller.py
+│   ├── students_management_controller.py
+│   ├── faculty_management_controller.py
+│   ├── department_management_controller.py
+│   ├── programs_courses_controller.py
+│   ├── enrollment_management_controller.py
+│   ├── attendance_management_controller.py
+│   └── assessments_grades_controller.py
 ├── services/                      # Business logic
+│   ├── auth_service.py
+│   ├── student_service.py
+│   ├── faculty_service.py
+│   ├── department_service.py
+│   ├── program_course_service.py
+│   ├── enrollment_service.py
+│   ├── attendance_service.py
+│   └── assessment_grade_service.py
 ├── repositories/                  # Data access layer
+│   ├── user_repository.py
+│   ├── student_repository.py
+│   ├── faculty_repository.py
+│   ├── department_repository.py
+│   ├── program_course_repository.py
+│   ├── enrollment_repository.py
+│   ├── attendance_repository.py
+│   └── assessment_grade_repository.py
 ├── entities/                      # SQLAlchemy ORM models
 ├── schemas/                       # Pydantic request/response models
 ├── dtos/                          # Data transfer objects
@@ -62,24 +86,23 @@ Database session is injected only at the repository level via FastAPI's dependen
 | POST   | `/verify-email`    | Verify email using OTP               | No            |
 | GET    | `/me`              | Get current user info                | Yes           |
 
-### Students Management (`/api/v1/students`)
+### Students (`/api/v1/students`)
 
-| Method | Endpoint              | Description                                      | Auth Required |
-|--------|-----------------------|--------------------------------------------------|---------------|
-| GET    | `/`                   | List all students (paginated, filterable)         | Yes           |
-| POST   | `/`                   | Register a new student (creates user + student)   | Yes           |
-| GET    | `/search`             | Search students by name, email, ID, admission no. | Yes           |
+| Method | Endpoint              | Description                                      | Auth Required     |
+|--------|-----------------------|--------------------------------------------------|-------------------|
+| GET    | `/`                   | List all students (paginated, filterable)         | Yes               |
+| POST   | `/`                   | Register a new student (creates user + student)   | Yes               |
+| GET    | `/search`             | Search students by name, email, ID, admission no. | Yes              |
 | GET    | `/export`             | Export students as CSV or Excel                   | Yes (admin/staff) |
-| GET    | `/{id}`               | Get student by ID                                 | Yes           |
-| PUT    | `/{id}`               | Update student details                            | Yes           |
-| DELETE | `/{id}`               | Soft delete student (sets inactive)               | Yes           |
-| GET    | `/{id}/profile`       | Get student profile                               | Yes           |
-| GET    | `/{id}/enrollments`   | Get student enrollments                           | Yes           |
-| GET    | `/{id}/attendance`    | Get student attendance records                    | Yes           |
-| GET    | `/{id}/grades`        | Get student grades (via enrollments)              | Yes           |
-| GET    | `/{id}/fees`          | Get student fee payments                          | Yes           |
-| GET    | `/{id}/documents`     | Get student documents                             | Yes           |
-| POST   | `/{id}/upload-photo`  | Upload student profile photo                      | Yes           |
+| GET    | `/{id}`               | Get student by ID                                 | Yes               |
+| PUT    | `/{id}`               | Update student details                            | Yes               |
+| DELETE | `/{id}`               | Soft delete student (sets inactive)               | Yes               |
+| GET    | `/{id}/enrollments`   | Get student enrollments                           | Yes               |
+| GET    | `/{id}/attendance`    | Get student attendance records                    | Yes               |
+| GET    | `/{id}/grades`        | Get student grades                                | Yes               |
+| GET    | `/{id}/fees`          | Get student fee payments                          | Yes               |
+| GET    | `/{id}/documents`     | Get student documents                             | Yes               |
+| POST   | `/{id}/upload-photo`  | Upload student profile photo                      | Yes               |
 
 **GET `/` query parameters:**
 
@@ -97,10 +120,10 @@ Database session is injected only at the repository level via FastAPI's dependen
 
 **GET `/search` query parameters:**
 
-| Parameter | Type   | Default | Description                                          |
-|-----------|--------|---------|------------------------------------------------------|
+| Parameter | Type   | Default | Description                                             |
+|-----------|--------|---------|---------------------------------------------------------|
 | `q`       | string | —       | Search term (matches name, email, student ID, adm. no.) |
-| `limit`   | int    | 20      | Max results (1-100)                                  |
+| `limit`   | int    | 20      | Max results (1-100)                                     |
 
 **GET `/export` query parameters:**
 
@@ -115,6 +138,237 @@ Database session is injected only at the repository level via FastAPI's dependen
 **POST `/{id}/upload-photo`:**
 
 Accepts a multipart file upload (JPEG, PNG, or WebP, max 5 MB). Updates the user's profile picture.
+
+### Faculty (`/api/v1/faculty`)
+
+| Method | Endpoint              | Description                           | Auth Required          |
+|--------|-----------------------|---------------------------------------|------------------------|
+| GET    | `/`                   | List all faculty (paginated)          | Yes                    |
+| POST   | `/`                   | Register a new faculty member         | Yes (admin/staff)      |
+| GET    | `/{id}`               | Get faculty by ID                     | Yes                    |
+| PUT    | `/{id}`               | Update faculty details                | Yes (admin/staff)      |
+| DELETE | `/{id}`               | Delete faculty                        | Yes (admin/staff)      |
+| GET    | `/{id}/courses`       | Get courses taught by faculty         | Yes                    |
+| GET    | `/{id}/schedule`      | Get faculty class schedule            | Yes                    |
+| GET    | `/{id}/students`      | Get students under faculty            | Yes                    |
+| POST   | `/{id}/upload-photo`  | Upload faculty profile photo          | Yes (admin/staff/self) |
+
+**GET `/` query parameters:**
+
+| Parameter         | Type   | Default | Description                                                  |
+|-------------------|--------|---------|--------------------------------------------------------------|
+| `page`            | int    | 1       | Page number (min 1)                                          |
+| `page_size`       | int    | 10      | Items per page (1-100)                                       |
+| `faculty_status`  | string | null    | Filter by status (active, inactive, suspended, retired, terminated) |
+| `department_id`   | int    | null    | Filter by department ID                                      |
+| `employment_type` | string | null    | Filter by type (permanent, contract, visiting, parttime)     |
+| `is_hod`          | bool   | null    | Filter by HOD status                                         |
+| `search`          | string | null    | Search by employee ID or designation                         |
+
+### Departments (`/api/v1/departments`)
+
+| Method | Endpoint              | Description                           | Auth Required     |
+|--------|-----------------------|---------------------------------------|-------------------|
+| GET    | `/`                   | List all departments (paginated)      | Yes               |
+| POST   | `/`                   | Create a new department               | Yes (admin/staff) |
+| GET    | `/{id}`               | Get department by ID                  | Yes               |
+| PUT    | `/{id}`               | Update department details             | Yes (admin/staff) |
+| DELETE | `/{id}`               | Delete department                     | Yes (admin/staff) |
+| GET    | `/{id}/faculty`       | Get faculty in the department         | Yes               |
+| GET    | `/{id}/students`      | Get students in the department        | Yes               |
+| GET    | `/{id}/courses`       | Get courses offered by department     | Yes               |
+
+**GET `/` query parameters:**
+
+| Parameter   | Type   | Default | Description                |
+|-------------|--------|---------|----------------------------|
+| `page`      | int    | 1       | Page number (min 1)        |
+| `page_size` | int    | 10      | Items per page (1-100)     |
+| `is_active` | bool   | null    | Filter by active status    |
+| `search`    | string | null    | Search by name or code     |
+
+### Programs (`/api/v1/programs`)
+
+| Method | Endpoint              | Description                           | Auth Required     |
+|--------|-----------------------|---------------------------------------|-------------------|
+| GET    | `/`                   | List all programs (paginated)         | Yes               |
+| POST   | `/`                   | Create a new program                  | Yes (admin/staff) |
+| GET    | `/{id}`               | Get program by ID                     | Yes               |
+| PUT    | `/{id}`               | Update program details                | Yes (admin/staff) |
+| DELETE | `/{id}`               | Delete program                        | Yes (admin/staff) |
+| GET    | `/{id}/courses`       | Get courses in the program            | Yes               |
+
+**GET `/` query parameters:**
+
+| Parameter     | Type   | Default | Description                |
+|---------------|--------|---------|----------------------------|
+| `page`        | int    | 1       | Page number (min 1)        |
+| `page_size`   | int    | 10      | Items per page (1-100)     |
+| `department_id` | int  | null    | Filter by department       |
+| `degree_type` | string | null    | Filter by degree type      |
+| `is_active`   | bool   | null    | Filter by active status    |
+| `search`      | string | null    | Search by name or code     |
+
+### Courses (`/api/v1/courses`)
+
+| Method | Endpoint              | Description                           | Auth Required     |
+|--------|-----------------------|---------------------------------------|-------------------|
+| GET    | `/`                   | List all courses (paginated)          | Yes               |
+| POST   | `/`                   | Create a new course                   | Yes (admin/staff) |
+| GET    | `/{id}`               | Get course by ID                      | Yes               |
+| PUT    | `/{id}`               | Update course details                 | Yes (admin/staff) |
+| DELETE | `/{id}`               | Delete course                         | Yes (admin/staff) |
+| GET    | `/{id}/prerequisites` | Get course prerequisites              | Yes               |
+
+**GET `/` query parameters:**
+
+| Parameter     | Type   | Default | Description                |
+|---------------|--------|---------|----------------------------|
+| `page`        | int    | 1       | Page number (min 1)        |
+| `page_size`   | int    | 10      | Items per page (1-100)     |
+| `department_id` | int  | null    | Filter by department       |
+| `course_type` | string | null    | Filter by course type      |
+| `level`       | string | null    | Filter by level            |
+| `is_active`   | bool   | null    | Filter by active status    |
+| `search`      | string | null    | Search by name or code     |
+
+### Course Offerings (`/api/v1/course-offerings`)
+
+| Method | Endpoint              | Description                           | Auth Required     |
+|--------|-----------------------|---------------------------------------|-------------------|
+| GET    | `/`                   | List all course offerings (paginated) | Yes               |
+| POST   | `/`                   | Create a new course offering          | Yes (admin/staff) |
+| GET    | `/{id}`               | Get offering by ID                    | Yes               |
+| PUT    | `/{id}`               | Update offering details               | Yes (admin/staff) |
+| DELETE | `/{id}`               | Delete offering                       | Yes (admin/staff) |
+
+**GET `/` query parameters:**
+
+| Parameter        | Type   | Default | Description                |
+|------------------|--------|---------|----------------------------|
+| `page`           | int    | 1       | Page number (min 1)        |
+| `page_size`      | int    | 10      | Items per page (1-100)     |
+| `program_id`     | int    | null    | Filter by program          |
+| `course_id`      | int    | null    | Filter by course           |
+| `semester`       | int    | null    | Filter by semester         |
+| `acedemic_year`  | string | null    | Filter by academic year    |
+| `offering_status`| string | null    | Filter by status           |
+
+### Enrollments (`/api/v1/enrollments`)
+
+| Method | Endpoint              | Description                           | Auth Required     |
+|--------|-----------------------|---------------------------------------|-------------------|
+| GET    | `/verify-eligibility` | Check student eligibility for program | Yes               |
+| GET    | `/`                   | List all enrollments (paginated)      | Yes               |
+| POST   | `/`                   | Create a new enrollment               | Yes (admin/staff) |
+| POST   | `/bulk`               | Bulk enroll multiple students         | Yes (admin/staff) |
+| GET    | `/{id}`               | Get enrollment by ID                  | Yes               |
+| PUT    | `/{id}`               | Update enrollment                     | Yes (admin/staff) |
+| DELETE | `/{id}`               | Drop enrollment                       | Yes (admin/staff) |
+
+**GET `/` query parameters:**
+
+| Parameter           | Type   | Default | Description                |
+|---------------------|--------|---------|----------------------------|
+| `page`              | int    | 1       | Page number (min 1)        |
+| `page_size`         | int    | 10      | Items per page (1-100)     |
+| `student_id`        | int    | null    | Filter by student          |
+| `program_id`        | int    | null    | Filter by program          |
+| `enrollment_status` | string | null    | Filter by status           |
+
+### Attendance (`/api/v1/attendance`)
+
+| Method | Endpoint              | Description                             | Auth Required             |
+|--------|-----------------------|-----------------------------------------|---------------------------|
+| GET    | `/summary`            | Get attendance summary                  | Yes                       |
+| GET    | `/reports`            | Get attendance reports (aggregated)     | Yes                       |
+| GET    | `/defaulters`         | Get students below attendance threshold | Yes                       |
+| GET    | `/`                   | List attendance records (paginated)     | Yes                       |
+| POST   | `/`                   | Mark attendance                         | Yes (admin/staff/faculty) |
+| POST   | `/bulk`               | Bulk mark attendance                    | Yes (admin/staff/faculty) |
+| PUT    | `/{id}`               | Update attendance record                | Yes (admin/staff/faculty) |
+
+**GET `/` query parameters:**
+
+| Parameter           | Type     | Default | Description                |
+|---------------------|----------|---------|----------------------------|
+| `page`              | int      | 1       | Page number (min 1)        |
+| `page_size`         | int      | 10      | Items per page (1-100)     |
+| `enrollment_id`     | int      | null    | Filter by enrollment       |
+| `student_id`        | int      | null    | Filter by student          |
+| `attendance_status` | string   | null    | Filter by status           |
+| `date_from`         | datetime | null    | Start date filter          |
+| `date_to`           | datetime | null    | End date filter            |
+
+**GET `/defaulters` query parameters:**
+
+| Parameter   | Type  | Default | Description                    |
+|-------------|-------|---------|--------------------------------|
+| `threshold` | float | 75.0    | Attendance percentage threshold|
+
+### Assessments (`/api/v1/assessments`)
+
+| Method | Endpoint              | Description                           | Auth Required             |
+|--------|-----------------------|---------------------------------------|---------------------------|
+| GET    | `/`                   | List all assessments (paginated)      | Yes                       |
+| POST   | `/`                   | Create a new assessment               | Yes (admin/staff/faculty) |
+| GET    | `/{id}`               | Get assessment by ID                  | Yes                       |
+| PUT    | `/{id}`               | Update assessment                     | Yes (admin/staff/faculty) |
+| DELETE | `/{id}`               | Delete assessment                     | Yes (admin/staff)         |
+
+**GET `/` query parameters:**
+
+| Parameter            | Type   | Default | Description                  |
+|----------------------|--------|---------|------------------------------|
+| `page`               | int    | 1       | Page number (min 1)          |
+| `page_size`          | int    | 10      | Items per page (1-100)       |
+| `course_offering_id` | int    | null    | Filter by course offering    |
+| `assessment_type`    | string | null    | Filter by assessment type    |
+
+### Grades (`/api/v1/grades`)
+
+| Method | Endpoint              | Description                           | Auth Required             |
+|--------|-----------------------|---------------------------------------|---------------------------|
+| GET    | `/calculate-sgpa`     | Calculate SGPA for a student/semester | Yes                       |
+| GET    | `/calculate-cgpa`     | Calculate CGPA for a student          | Yes                       |
+| GET    | `/`                   | List all grades (paginated)           | Yes                       |
+| POST   | `/`                   | Submit a grade                        | Yes (admin/staff/faculty) |
+| PUT    | `/{id}`               | Update a grade                        | Yes (admin/staff/faculty) |
+| POST   | `/bulk`               | Bulk submit grades                    | Yes (admin/staff/faculty) |
+| POST   | `/publish`            | Publish semester results              | Yes (admin/staff)         |
+
+**GET `/` query parameters:**
+
+| Parameter       | Type | Default | Description              |
+|-----------------|------|---------|--------------------------|
+| `page`          | int  | 1       | Page number (min 1)      |
+| `page_size`     | int  | 10      | Items per page (1-100)   |
+| `enrollment_id` | int  | null    | Filter by enrollment     |
+| `course_id`     | int  | null    | Filter by course         |
+| `assessment_id` | int  | null    | Filter by assessment     |
+| `student_id`    | int  | null    | Filter by student        |
+
+**GET `/calculate-sgpa` query parameters:**
+
+| Parameter    | Type | Description          |
+|--------------|------|----------------------|
+| `student_id` | int  | Student ID (required)|
+| `semester`   | int  | Semester (required)  |
+
+**GET `/calculate-cgpa` query parameters:**
+
+| Parameter    | Type | Description          |
+|--------------|------|----------------------|
+| `student_id` | int  | Student ID (required)|
+
+## Role-Based Access
+
+| Role    | Permissions                                                     |
+|---------|-----------------------------------------------------------------|
+| admin   | Full access to all endpoints                                    |
+| staff   | Full access to all endpoints                                    |
+| faculty | Read access + create/update attendance, assessments, and grades |
+| student | Read-only access to own data                                    |
 
 ## Setup
 
@@ -187,4 +441,4 @@ The server starts at `http://localhost:8000`. API docs available at `http://loca
 | Library        | Library Books, Book Issues                            |
 | Hostel         | Hostels, Hostel Rooms, Hostel Allocations             |
 | Communication  | Notifications, User Notifications                     |
-| Administration | Documents, Audit Logs, System Logs                    |
+| Administration | Documents, Audit Logs, System Logs, Exam Schedules    |

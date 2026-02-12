@@ -1,12 +1,9 @@
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, ForeignKey, Index
-from sqlalchemy.orm import Mapped, mapped_column
-from enums.degree_type import DegreeType
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, ForeignKey, Index, func
 from configs.db_config import Base
 from enums.degree_type import DegreeType
 
 
 class Program(Base):
-
     __tablename__ = "programs"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -20,12 +17,10 @@ class Program(Base):
     total_credits = Column(Integer, nullable=False)
     eligibity_criteria = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
-    created_at: Mapped[DateTime] = mapped_column(
-        DateTime, default=DateTime.now(), nullable=False
-    )
+    created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, nullable=True)
 
-    __tableargs__ = (
+    __table_args__ = (
         Index("idx_programs_name", "name"),
         Index("idx_programs_code", "code"),
         Index("idx_programs_department_id", "department_id"),

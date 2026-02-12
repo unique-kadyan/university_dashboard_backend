@@ -1,5 +1,4 @@
-from sqlalchemy import Column, DateTime, Enum, Integer, String, ForeignKey, Index
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Column, DateTime, Enum, Integer, String, ForeignKey, Index, func
 
 from configs.db_config import Base
 from enums.hostel_allocation_status import HostelAllocationStatus
@@ -12,14 +11,12 @@ class HostelAllocation(Base):
     student_id = Column(Integer, ForeignKey("students.id"), unique=True, nullable=False)
     hostel_id = Column(Integer, ForeignKey("hostels.id"), nullable=False)
     room_id = Column(Integer, ForeignKey("hostel_rooms.id"), nullable=False)
-    allocation_date: Mapped[DateTime] = mapped_column(
-        DateTime, default=DateTime.now(), nullable=False
-    )
+    allocation_date = Column(DateTime, default=func.now(), nullable=False)
     release_date = Column(DateTime, nullable=True)
     acedamic_year = Column(String, nullable=False)
     status = Column(Enum(HostelAllocationStatus), nullable=False)
     remarks = Column(String, nullable=True)
-    created_at: Mapped[DateTime] = mapped_column(default=DateTime.now(), nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, nullable=True)
 
     __table_args__ = (

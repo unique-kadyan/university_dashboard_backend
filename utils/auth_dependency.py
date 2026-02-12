@@ -27,4 +27,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    payload["id"] = payload["sub"]
+    payload["role"] = payload["user_type"]
+
     return payload

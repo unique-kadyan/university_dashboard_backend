@@ -1,17 +1,15 @@
 from sqlalchemy import (
     JSON,
-    JSON,
     Boolean,
     Column,
     DateTime,
-    Enum,
     Enum,
     ForeignKey,
     Index,
     Integer,
     String,
+    func,
 )
-from sqlalchemy.orm import Mapped, mapped_column
 
 from configs.db_config import Base
 from enums.hostel_types import HostelType
@@ -31,7 +29,7 @@ class Hostel(Base):
     aminities = Column(JSON, nullable=True)
     rules = Column(JSON, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at: Mapped[DateTime] = mapped_column(default=DateTime.now(), nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, nullable=True)
 
     __table_args__ = (

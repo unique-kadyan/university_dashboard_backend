@@ -1,6 +1,5 @@
-from sqlalchemy import JSON, Column, DateTime, Integer, String, ForeignKey, Index
+from sqlalchemy import JSON, Column, DateTime, Integer, String, ForeignKey, Index, func
 from sqlalchemy.dialects.postgresql import INET
-from sqlalchemy.orm import Mapped, mapped_column
 
 from configs.db_config import Base
 
@@ -18,9 +17,7 @@ class AuditLog(Base):
     new_value = Column(JSON, nullable=True)
     ip_address = Column(INET, nullable=True)
     user_agent = Column(String, nullable=True)
-    timestamp: Mapped[DateTime] = mapped_column(
-        DateTime, default=DateTime.now(), nullable=False
-    )
+    timestamp = Column(DateTime, default=func.now(), nullable=False)
 
     __table_args__ = (
         Index("idx_audit_logs_user_id", "user_id"),

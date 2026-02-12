@@ -8,8 +8,8 @@ from sqlalchemy import (
     String,
     ForeignKey,
     Index,
+    func,
 )
-from sqlalchemy.orm import Mapped, mapped_column
 
 from configs.db_config import Base
 from enums.notification_status import NotificationStatus
@@ -29,12 +29,10 @@ class Notification(Base):
     target_id = Column(JSON, nullable=True)
     priority = Column(Enum(PriorityLevel), nullable=False)
     sent_by = Column(Integer, ForeignKey("users.id"), nullable=False)
-    scheduled_at: Mapped[DateTime] = mapped_column(DateTime, nullable=True)
-    sent_at: Mapped[DateTime] = mapped_column(DateTime, nullable=True)
+    scheduled_at = Column(DateTime, nullable=True)
+    sent_at = Column(DateTime, nullable=True)
     status = Column(Enum(NotificationStatus), nullable=False)
-    created_at: Mapped[DateTime] = mapped_column(
-        DateTime, default=DateTime.now(), nullable=False
-    )
+    created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, nullable=True)
 
     __table_args__ = (

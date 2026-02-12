@@ -8,8 +8,8 @@ from sqlalchemy import (
     String,
     ForeignKey,
     Index,
+    func,
 )
-from sqlalchemy.orm import Mapped, mapped_column
 
 from configs.db_config import Base
 from enums.access_levels import AccessLevel
@@ -34,12 +34,8 @@ class Document(Base):
     is_public = Column(Boolean, default=False, nullable=False)
     access_level = Column(Enum(AccessLevel), nullable=True)
     tags = Column(JSON, nullable=True)
-    uploaded_at: Mapped[DateTime] = mapped_column(
-        DateTime, default=DateTime.now(), nullable=False
-    )
-    created_at: Mapped[DateTime] = mapped_column(
-        DateTime, default=DateTime.now(), nullable=False
-    )
+    uploaded_at = Column(DateTime, default=func.now(), nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, nullable=True)
 
     __table_args__ = (

@@ -12,6 +12,7 @@ from entities.grades import Grades
 from entities.user import User
 from entities.programs import Program
 from entities.departments import Department
+from enums.status import Status
 
 
 class StudentRepository:
@@ -82,7 +83,7 @@ class StudentRepository:
 
     async def find_documents_by_user_id(self, user_id: int) -> List[Document]:
         result = await self.db.execute(
-            select(Document).where(Document.uploaded_by == user_id)
+            select(Document).where(Document.user_id == user_id)
         )
         return list(result.scalars().all())
 
@@ -247,7 +248,7 @@ class StudentRepository:
         return student
 
     async def delete_student(self, student: Student) -> None:
-        student.is_active = False
+        student.status = Status.INACTIVE
         await self.db.merge(student)
         await self.db.commit()
         await self.db.refresh(student)

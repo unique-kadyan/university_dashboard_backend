@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Generic, List, Optional, TypeVar
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 from enums.gender import Gender
 from enums.category import Category
 from enums.status import Status
@@ -28,10 +28,9 @@ class StudentResponse(BaseModel):
     status: str
     cgpa: Optional[Decimal] = None
     created_at: Optional[datetime] = None
-    updated_at: Optional[date] = None
+    updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 T = TypeVar("T")
@@ -55,8 +54,7 @@ class EnrollmentResponse(BaseModel):
     credits_earned: Optional[int] = None
     remarks: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StudentEnrollmentResponse(BaseModel):
@@ -71,12 +69,11 @@ class AttendanceResponse(BaseModel):
     student_id: int
     date: datetime
     status: str
-    marked_by: int
+    marked_by: str
     remarks: Optional[str] = None
     marked_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StudentAttendanceResponse(BaseModel):
@@ -92,11 +89,10 @@ class GradeResponse(BaseModel):
     assessment_id: int
     marks_obtained: Decimal
     remarks: Optional[str] = None
-    graded_by: int
+    graded_by: str
     graded_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StudentGradesResponse(BaseModel):
@@ -120,8 +116,7 @@ class FeePaymentResponse(BaseModel):
     remarks: Optional[str] = None
     processed_by: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StudentFeesResponse(BaseModel):
@@ -145,8 +140,7 @@ class DocumentResponse(BaseModel):
     tags: Optional[list] = None
     uploaded_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StudentDocumentsResponse(BaseModel):
@@ -225,5 +219,4 @@ class StudentRegisterResponse(BaseModel):
     semester: int
     status: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

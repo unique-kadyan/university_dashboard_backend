@@ -1,5 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Index
-from datetime import Date
+from sqlalchemy import Column, Date, DateTime, Integer, String, Boolean, ForeignKey, Index, func
 from enums.gender import Gender
 from enums.user_type import UserType
 from configs.db_config import Base
@@ -28,9 +27,9 @@ class User(Base):
     profile_picture = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)
-    last_login = Column(Date, nullable=True)
-    created_at = Column(Date, nullable=False)
-    updated_at = Column(Date, nullable=True)
+    last_login = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(DateTime, nullable=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     updated_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 

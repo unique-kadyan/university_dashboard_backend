@@ -1,7 +1,4 @@
-from decimal import Decimal
-from sqlalchemy import Column, DateTime, Integer, String, ForeignKey, Index
-from sqlalchemy.orm import Mapped, mapped_column
-
+from sqlalchemy import Column, DateTime, Integer, Numeric, String, ForeignKey, Index, func
 from configs.db_config import Base
 
 
@@ -11,15 +8,15 @@ class ExamTimetable(Base):
     id = Column(Integer, primary_key=True, index=True)
     exam_schedule_id = Column(Integer, ForeignKey("exam_schedules.id"), nullable=False)
     course_offering_id = Column(
-        Integer, ForeignKey("course_offerings.id"), nullable=False
+        Integer, ForeignKey("program_courses.id"), nullable=False
     )
-    exam_date: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
-    start_time: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
-    end_time: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
+    exam_date = Column(DateTime, nullable=False)
+    start_time = Column(DateTime, nullable=False)
+    end_time = Column(DateTime, nullable=False)
     duration_minutes = Column(Integer, nullable=False)
     venue = Column(String, nullable=False)
-    max_marks = Column(Decimal(6, 2), nullable=False)
-    created_at: Mapped[DateTime] = mapped_column(default=DateTime.now(), nullable=False)
+    max_marks = Column(Numeric(6, 2), nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, nullable=True)
 
     __table_args__ = (

@@ -1,4 +1,3 @@
-# Import all entities to register them with SQLAlchemy
 from entities.admin_staff import *  # noqa: F401, F403
 from entities.assessments import *  # noqa: F401, F403
 from entities.attendance import *  # noqa: F401, F403
@@ -23,7 +22,6 @@ from entities.hostels import *  # noqa: F401, F403
 from entities.library_books import *  # noqa: F401, F403
 from entities.notifications import *  # noqa: F401, F403
 from entities.parents import *  # noqa: F401, F403
-from entities.program_courses import *  # noqa: F401, F403
 from entities.programs import *  # noqa: F401, F403
 from entities.semester_results import *  # noqa: F401, F403
 from entities.students import *  # noqa: F401, F403

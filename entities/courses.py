@@ -7,11 +7,9 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
-    Table,
     func,
 )
 from sqlalchemy.dialects.postgresql import ARRAY as Array
-from sqlalchemy.orm import relationship
 from configs.db_config import Base
 from enums.course_type import CourseType
 from enums.levels import Levels
@@ -29,13 +27,13 @@ class Course(Base):
     course_type = Column(Enum(CourseType), nullable=False)
     level = Column(Enum(Levels), nullable=False)
     max_students = Column(Integer, nullable=True)
-    prerequisites = Column(Array(Integer), ForeignKey("courses.id"), nullable=True)
+    prerequisites = Column(Array(Integer), nullable=True)
     syllabus = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, nullable=True)
 
-    __tableargs__ = (
+    __table_args__ = (
         Index("idx_courses_name", "name"),
         Index("idx_courses_code", "code"),
         Index("idx_courses_department_id", "department_id"),

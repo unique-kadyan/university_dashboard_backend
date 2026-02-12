@@ -5,6 +5,19 @@ from configs.db_config import create_schema, create_tables, engine
 
 from controllers.authentication_authroziation_controller import router as auth_router
 from controllers.students_management_controller import router as students_router
+from controllers.faculty_management_controller import router as faculty_router
+from controllers.department_management_controller import router as department_router
+from controllers.programs_courses_controller import (
+    programs_router,
+    courses_router,
+    offerings_router,
+)
+from controllers.enrollment_management_controller import router as enrollment_router
+from controllers.attendance_management_controller import router as attendance_router
+from controllers.assessments_grades_controller import (
+    assessments_router,
+    grades_router,
+)
 
 
 @asynccontextmanager
@@ -24,6 +37,15 @@ app = FastAPI(
 
 app.include_router(auth_router)
 app.include_router(students_router)
+app.include_router(faculty_router)
+app.include_router(department_router)
+app.include_router(programs_router)
+app.include_router(courses_router)
+app.include_router(offerings_router)
+app.include_router(enrollment_router)
+app.include_router(attendance_router)
+app.include_router(assessments_router)
+app.include_router(grades_router)
 
 
 @app.get("/")

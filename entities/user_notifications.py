@@ -3,12 +3,11 @@ from sqlalchemy import (
     Column,
     DateTime,
     Integer,
-    String,
     ForeignKey,
     Index,
     UniqueConstraint,
+    func,
 )
-from sqlalchemy.orm import Mapped, mapped_column
 
 from configs.db_config import Base
 
@@ -20,10 +19,8 @@ class UserNotification(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     notification_id = Column(Integer, ForeignKey("notifications.id"), nullable=False)
     is_read = Column(Boolean, default=False, nullable=False)
-    read_at: Mapped[DateTime] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[DateTime] = mapped_column(
-        DateTime, default=DateTime.now(), nullable=False
-    )
+    read_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, nullable=True)
 
     __table_args__ = (

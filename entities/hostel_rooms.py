@@ -5,14 +5,14 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
-    ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     UniqueConstraint,
+    func,
 )
-from sqlalchemy.orm import Mapped, mapped_column
-from decimal import Decimal
+
 from configs.db_config import Base
 from enums.hostel_room_status import HostelRoomStatus
 from enums.hostel_room_types import HostelRoomType
@@ -28,13 +28,11 @@ class HostelRoom(Base):
     floor = Column(Integer, nullable=True)
     capacity = Column(Integer, nullable=False)
     occupied_beds = Column(Integer, default=0, nullable=False)
-    room_fee = Column(Decimal(precision=10, scale=2), nullable=False)
+    room_fee = Column(Numeric(10, 2), nullable=False)
     aminities = Column(JSON, nullable=True)
     status = Column(Enum(HostelRoomStatus), nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at: Mapped[DateTime] = mapped_column(
-        DateTime, default=DateTime.now(), nullable=False
-    )
+    created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, nullable=True)
 
     __table_args__ = (

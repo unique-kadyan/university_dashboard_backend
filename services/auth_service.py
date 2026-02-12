@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import datetime, timezone
 from fastapi import Depends, HTTPException, status
 from passlib.context import CryptContext
 from entities.user import User
@@ -56,7 +56,7 @@ class AuthService:
             postal_code=request.postal_code,
             is_active=True,
             is_verified=False,
-            created_at=date.today(),
+            created_at=datetime.now(timezone.utc),
         )
 
         return await self.user_repository.create(user)

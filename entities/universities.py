@@ -1,6 +1,6 @@
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Index, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Boolean, Column, DateTime, Index, Integer, String, func
 from configs.db_config import Base
+
 
 class University(Base):
     __tablename__ = "universities"
@@ -18,11 +18,11 @@ class University(Base):
     phone = Column(String, nullable=True)
     email = Column(String, nullable=True)
     website = Column(String, nullable=True)
-    created_at : Mapped[DateTime] = mapped_column(default=DateTime.now(), nullable=False)
-    updated_at = Column(Date, nullable=True)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(DateTime, nullable=True)
 
     __table_args__ = (
         Index("idx_universities_name", "name"),
         Index("idx_universities_is_active", "is_active"),
-        Index("idx_universities_code", "code")
+        Index("idx_universities_code", "code"),
     )

@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 from enums.user_type import UserType
 from enums.gender import Gender
 
@@ -32,5 +32,4 @@ class UserRegisterResponse(BaseModel):
     is_active: bool
     is_verified: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
