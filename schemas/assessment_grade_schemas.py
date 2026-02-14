@@ -5,9 +5,6 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
 
-# ── Assessment Schemas ─────────────────────────────────────────────
-
-
 class AssessmentResponse(BaseModel):
     id: int
     course_offering_id: int
@@ -41,9 +38,6 @@ class AssessmentUpdateRequest(BaseModel):
     date: Optional[date] = None
 
 
-# ── Grade Schemas ──────────────────────────────────────────────────
-
-
 class GradeDetailResponse(BaseModel):
     id: int
     enrollment_id: int
@@ -72,9 +66,6 @@ class GradeUpdateRequest(BaseModel):
     remarks: Optional[str] = None
 
 
-# ── Bulk Grade Schemas ─────────────────────────────────────────────
-
-
 class BulkGradeItem(BaseModel):
     enrollment_id: int
     marks_obtained: Decimal
@@ -98,9 +89,6 @@ class BulkGradeResponse(BaseModel):
     successful: int
     failed: int
     results: list[BulkGradeResultItem]
-
-
-# ── SGPA / CGPA Schemas ───────────────────────────────────────────
 
 
 class CourseGradeItem(BaseModel):
@@ -132,9 +120,6 @@ class CGPAResponse(BaseModel):
     semesters: list[SemesterGPAItem]
     total_credits: int
     cgpa: float
-
-
-# ── Publish Results Schemas ────────────────────────────────────────
 
 
 class PublishResultsRequest(BaseModel):

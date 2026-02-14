@@ -18,6 +18,20 @@ from controllers.assessments_grades_controller import (
     assessments_router,
     grades_router,
 )
+from controllers.fees_management_controller import (
+    fee_structures_router,
+    fee_payments_router,
+)
+from controllers.library_management_controllers import library_router
+from controllers.hostel_management_controller import (
+    hostels_router,
+    hostel_rooms_router,
+    hostel_allocations_router,
+)
+from controllers.examination_management_controller import (
+    exam_schedules_router,
+    exam_timetable_router,
+)
 
 
 @asynccontextmanager
@@ -46,6 +60,14 @@ app.include_router(enrollment_router)
 app.include_router(attendance_router)
 app.include_router(assessments_router)
 app.include_router(grades_router)
+app.include_router(fee_structures_router)
+app.include_router(fee_payments_router)
+app.include_router(library_router)
+app.include_router(hostels_router)
+app.include_router(hostel_rooms_router)
+app.include_router(hostel_allocations_router)
+app.include_router(exam_schedules_router)
+app.include_router(exam_timetable_router)
 
 
 @app.get("/")

@@ -42,7 +42,7 @@ class PaginatedResponse(BaseModel, Generic[T]):
     page: int
     page_size: int
     total_pages: int
-    
+
 class EnrollmentResponse(BaseModel):
     id: int
     student_id: int

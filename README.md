@@ -30,7 +30,11 @@ StudentManagement/
 │   ├── programs_courses_controller.py
 │   ├── enrollment_management_controller.py
 │   ├── attendance_management_controller.py
-│   └── assessments_grades_controller.py
+│   ├── assessments_grades_controller.py
+│   ├── fees_management_controller.py
+│   ├── library_management_controllers.py
+│   ├── hostel_management_controller.py
+│   └── examination_management_controller.py
 ├── services/                      # Business logic
 │   ├── auth_service.py
 │   ├── student_service.py
@@ -39,7 +43,11 @@ StudentManagement/
 │   ├── program_course_service.py
 │   ├── enrollment_service.py
 │   ├── attendance_service.py
-│   └── assessment_grade_service.py
+│   ├── assessment_grade_service.py
+│   ├── fee_service.py
+│   ├── library_service.py
+│   ├── hostel_service.py
+│   └── exam_service.py
 ├── repositories/                  # Data access layer
 │   ├── user_repository.py
 │   ├── student_repository.py
@@ -48,7 +56,11 @@ StudentManagement/
 │   ├── program_course_repository.py
 │   ├── enrollment_repository.py
 │   ├── attendance_repository.py
-│   └── assessment_grade_repository.py
+│   ├── assessment_grade_repository.py
+│   ├── fee_repository.py
+│   ├── library_repository.py
+│   ├── hostel_repository.py
+│   └── exam_repository.py
 ├── entities/                      # SQLAlchemy ORM models
 ├── schemas/                       # Pydantic request/response models
 ├── dtos/                          # Data transfer objects
@@ -361,14 +373,209 @@ Accepts a multipart file upload (JPEG, PNG, or WebP, max 5 MB). Updates the user
 |--------------|------|----------------------|
 | `student_id` | int  | Student ID (required)|
 
+### Fee Structures (`/api/v1/fee-structures`)
+
+| Method | Endpoint              | Description                           | Auth Required     |
+|--------|-----------------------|---------------------------------------|-------------------|
+| GET    | `/`                   | List fee structures (paginated)       | Yes               |
+| POST   | `/`                   | Create a new fee structure            | Yes (admin/staff) |
+| GET    | `/{id}`               | Get fee structure by ID               | Yes               |
+| PUT    | `/{id}`               | Update fee structure                  | Yes (admin/staff) |
+
+**GET `/` query parameters:**
+
+| Parameter       | Type   | Default | Description                |
+|-----------------|--------|---------|----------------------------|
+| `page`          | int    | 1       | Page number (min 1)        |
+| `page_size`     | int    | 10      | Items per page (1-100)     |
+| `program_id`    | int    | null    | Filter by program          |
+| `student_id`    | int    | null    | Filter by student          |
+| `acedamic_year` | string | null    | Filter by academic year    |
+| `semester`      | int    | null    | Filter by semester         |
+
+### Fee Payments (`/api/v1/fee-payments`)
+
+| Method | Endpoint              | Description                             | Auth Required     |
+|--------|-----------------------|-----------------------------------------|-------------------|
+| GET    | `/pending`            | Get pending (unpaid/partial) payments   | Yes               |
+| GET    | `/defaulters`         | Get students with overdue fees          | Yes (admin/staff) |
+| GET    | `/`                   | List all payments (paginated)           | Yes               |
+| POST   | `/`                   | Record a fee payment                    | Yes (admin/staff) |
+| POST   | `/refund`             | Process a payment refund                | Yes (admin/staff) |
+| GET    | `/{id}`               | Get payment details                     | Yes               |
+| GET    | `/{id}/receipt`       | Generate payment receipt                | Yes               |
+
+**GET `/` query parameters:**
+
+| Parameter          | Type   | Default | Description                |
+|--------------------|--------|---------|----------------------------|
+| `page`             | int    | 1       | Page number (min 1)        |
+| `page_size`        | int    | 10      | Items per page (1-100)     |
+| `student_id`       | int    | null    | Filter by student          |
+| `fee_structure_id` | int    | null    | Filter by fee structure    |
+| `payment_status`   | string | null    | Filter by status           |
+
+### Library (`/api/v1/library`)
+
+**Books:**
+
+| Method | Endpoint              | Description                        | Auth Required     |
+|--------|-----------------------|------------------------------------|-------------------|
+| GET    | `/books/search`       | Search books by title, author, ISBN | Yes              |
+| GET    | `/books`              | List all books (paginated)         | Yes               |
+| POST   | `/books`              | Add a new book                     | Yes (admin/staff) |
+| GET    | `/books/{id}`         | Get book details                   | Yes               |
+| PUT    | `/books/{id}`         | Update book                        | Yes (admin/staff) |
+| DELETE | `/books/{id}`         | Delete book                        | Yes (admin/staff) |
+
+**GET `/books` query parameters:**
+
+| Parameter       | Type   | Default | Description                |
+|-----------------|--------|---------|----------------------------|
+| `page`          | int    | 1       | Page number (min 1)        |
+| `page_size`     | int    | 10      | Items per page (1-100)     |
+| `category`      | string | null    | Filter by category         |
+| `department_id` | int    | null    | Filter by department       |
+| `is_referenced` | bool   | null    | Filter reference books     |
+
+**Circulation:**
+
+| Method | Endpoint              | Description                        | Auth Required     |
+|--------|-----------------------|------------------------------------|-------------------|
+| GET    | `/issued`             | Get currently issued books         | Yes               |
+| GET    | `/overdue`            | Get overdue books with days count  | Yes               |
+| POST   | `/issue`              | Issue a book to a user             | Yes (admin/staff) |
+| PUT    | `/return`             | Return an issued book              | Yes               |
+| POST   | `/renew`              | Renew (extend due date)            | Yes               |
+| POST   | `/pay-fine`           | Pay fine for overdue book          | Yes               |
+
+### Hostels (`/api/v1/hostels`)
+
+| Method | Endpoint              | Description                           | Auth Required     |
+|--------|-----------------------|---------------------------------------|-------------------|
+| GET    | `/`                   | List all hostels (paginated)          | Yes               |
+| POST   | `/`                   | Create a new hostel                   | Yes (admin/staff) |
+| GET    | `/{id}`               | Get hostel by ID                      | Yes               |
+| PUT    | `/{id}`               | Update hostel details                 | Yes (admin/staff) |
+| GET    | `/{id}/rooms`         | Get all rooms in a hostel             | Yes               |
+
+**GET `/` query parameters:**
+
+| Parameter     | Type   | Default | Description                |
+|---------------|--------|---------|----------------------------|
+| `page`        | int    | 1       | Page number (min 1)        |
+| `page_size`   | int    | 10      | Items per page (1-100)     |
+| `hostel_type` | string | null    | Filter by hostel type      |
+| `is_active`   | bool   | null    | Filter by active status    |
+
+### Hostel Rooms (`/api/v1/hostel-rooms`)
+
+| Method | Endpoint              | Description                           | Auth Required     |
+|--------|-----------------------|---------------------------------------|-------------------|
+| GET    | `/available`          | Get available rooms                   | Yes               |
+| GET    | `/`                   | List all rooms (paginated)            | Yes               |
+| POST   | `/`                   | Add a new room to a hostel            | Yes (admin/staff) |
+| GET    | `/{id}`               | Get room by ID                        | Yes               |
+| PUT    | `/{id}`               | Update room details                   | Yes (admin/staff) |
+
+**GET `/` query parameters:**
+
+| Parameter     | Type   | Default | Description                |
+|---------------|--------|---------|----------------------------|
+| `page`        | int    | 1       | Page number (min 1)        |
+| `page_size`   | int    | 10      | Items per page (1-100)     |
+| `hostel_id`   | int    | null    | Filter by hostel           |
+| `room_type`   | string | null    | Filter by room type        |
+| `room_status` | string | null    | Filter by status           |
+| `is_active`   | bool   | null    | Filter by active status    |
+
+### Hostel Allocations (`/api/v1/hostel-allocations`)
+
+| Method | Endpoint                  | Description                             | Auth Required     |
+|--------|---------------------------|-----------------------------------------|-------------------|
+| GET    | `/history/{student_id}`   | Get student's full allocation history   | Yes               |
+| GET    | `/`                       | List all allocations (paginated)        | Yes               |
+| POST   | `/`                       | Allocate a room to a student            | Yes (admin/staff) |
+| PUT    | `/{id}`                   | Update/transfer allocation              | Yes (admin/staff) |
+| DELETE | `/{id}`                   | Vacate room (keeps history record)      | Yes (admin/staff) |
+
+**GET `/` query parameters:**
+
+| Parameter           | Type   | Default | Description                |
+|---------------------|--------|---------|----------------------------|
+| `page`              | int    | 1       | Page number (min 1)        |
+| `page_size`         | int    | 10      | Items per page (1-100)     |
+| `student_id`        | int    | null    | Filter by student          |
+| `hostel_id`         | int    | null    | Filter by hostel           |
+| `room_id`           | int    | null    | Filter by room             |
+| `allocation_status` | string | null    | Filter by status           |
+| `acedamic_year`     | string | null    | Filter by academic year    |
+
+**Allocation history:** Each allocation (active, vacated, transferred) is preserved as a separate record. The `DELETE /{id}` endpoint marks the allocation as `VACATED` rather than deleting it. Room transfers create a `TRANSFERRED` record for the old allocation and a new `ACTIVE` record for the new room. Use `GET /history/{student_id}` to retrieve a student's complete hostel allocation timeline.
+
+### Exam Schedules (`/api/v1/exams`)
+
+| Method | Endpoint              | Description                           | Auth Required     |
+|--------|-----------------------|---------------------------------------|-------------------|
+| GET    | `/`                   | List exam schedules (paginated)       | Yes               |
+| POST   | `/`                   | Create a new exam schedule            | Yes (admin/staff) |
+| GET    | `/{id}`               | Get exam schedule by ID               | Yes               |
+| PUT    | `/{id}`               | Update exam schedule                  | Yes (admin/staff) |
+| DELETE | `/{id}`               | Delete exam schedule                  | Yes (admin/staff) |
+
+**GET `/` query parameters:**
+
+| Parameter       | Type   | Default | Description                |
+|-----------------|--------|---------|----------------------------|
+| `page`          | int    | 1       | Page number (min 1)        |
+| `page_size`     | int    | 10      | Items per page (1-100)     |
+| `course_id`     | int    | null    | Filter by course           |
+| `academic_year` | string | null    | Filter by academic year    |
+| `semester`      | int    | null    | Filter by semester         |
+| `status`        | string | null    | Filter by status           |
+| `exam_type`     | string | null    | Filter by exam type        |
+
+**Exam status values:** `draft`, `scheduled`, `ongoing`, `completed`, `cancelled`
+
+**Exam type values:** `midterm`, `final`, `supplementary`, `improvement`
+
+### Exam Timetable (`/api/v1/exam-timetable`)
+
+| Method | Endpoint              | Description                              | Auth Required     |
+|--------|-----------------------|------------------------------------------|-------------------|
+| GET    | `/export`             | Export timetable data (with filters)     | Yes               |
+| GET    | `/student/{id}`       | Get a student's exam schedule            | Yes               |
+| GET    | `/`                   | List timetable entries (paginated)       | Yes               |
+| POST   | `/`                   | Create a new timetable entry             | Yes (admin/staff) |
+| PUT    | `/{id}`               | Update a timetable entry                 | Yes (admin/staff) |
+
+**GET `/` query parameters:**
+
+| Parameter           | Type | Default | Description                |
+|---------------------|------|---------|----------------------------|
+| `page`              | int  | 1       | Page number (min 1)        |
+| `page_size`         | int  | 10      | Items per page (1-100)     |
+| `exam_schedule_id`  | int  | null    | Filter by exam schedule    |
+| `course_offering_id`| int  | null    | Filter by course offering  |
+
+**GET `/export` query parameters:**
+
+| Parameter          | Type   | Default | Description                |
+|--------------------|--------|---------|----------------------------|
+| `exam_schedule_id` | int    | null    | Filter by exam schedule    |
+| `academic_year`    | string | null    | Filter by academic year    |
+| `semester`         | int    | null    | Filter by semester         |
+
+**Student exam schedule:** The `GET /student/{id}` endpoint returns all exam timetable entries for a student based on the programs they are enrolled in. Each entry includes the exam name, type, date, time, venue, duration, and max marks.
+
 ## Role-Based Access
 
-| Role    | Permissions                                                     |
-|---------|-----------------------------------------------------------------|
-| admin   | Full access to all endpoints                                    |
-| staff   | Full access to all endpoints                                    |
-| faculty | Read access + create/update attendance, assessments, and grades |
-| student | Read-only access to own data                                    |
+| Role    | Permissions                                                              |
+|---------|--------------------------------------------------------------------------|
+| admin   | Full access to all endpoints                                             |
+| staff   | Full access to all endpoints                                             |
+| faculty | Read access + create/update attendance, assessments, and grades          |
+| student | Read-only access to own data (enrollments, attendance, grades, fees)     |
 
 ## Setup
 
@@ -434,11 +641,12 @@ The server starts at `http://localhost:8000`. API docs available at `http://loca
 | Users          | Users, Admin Staff, Faculty, Students, Parents        |
 | Academics      | Universities, Departments, Programs, Courses          |
 | Enrollment     | Enrollments, Course Offerings, Program Courses        |
-| Scheduling     | Class Schedules, Timetable Slots, Exam Timetables     |
+| Scheduling     | Class Schedules, Timetable Slots                       |
+| Examination    | Exam Schedules, Exam Timetables                        |
 | Assessment     | Assessments, Grades, Semester Results                 |
 | Attendance     | Attendance, Attendance Summary                        |
 | Finance        | Fee Structures, Fee Payments                          |
 | Library        | Library Books, Book Issues                            |
 | Hostel         | Hostels, Hostel Rooms, Hostel Allocations             |
 | Communication  | Notifications, User Notifications                     |
-| Administration | Documents, Audit Logs, System Logs, Exam Schedules    |
+| Administration | Documents, Audit Logs, System Logs                     |

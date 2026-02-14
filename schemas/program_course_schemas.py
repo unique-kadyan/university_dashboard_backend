@@ -7,8 +7,6 @@ from enums.degree_type import DegreeType
 from enums.levels import Levels
 
 
-# ── Program Schemas ──────────────────────────────────────────────────────────
-
 class ProgramResponse(BaseModel):
     id: int
     name: str
@@ -61,8 +59,6 @@ class ProgramCourseItem(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-
-# ── Course Schemas ───────────────────────────────────────────────────────────
 
 class CourseResponse(BaseModel):
     id: int
@@ -117,8 +113,6 @@ class CoursePrerequisiteResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-
-# ── Course Offering Schemas ──────────────────────────────────────────────────
 
 class CourseOfferingResponse(BaseModel):
     id: int

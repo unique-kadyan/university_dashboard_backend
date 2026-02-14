@@ -6,6 +6,7 @@ class Department(Base):
     __tablename__ = "departments"
 
     id = Column(Integer, primary_key=True, index=True)
+    university_id = Column(Integer, ForeignKey("universities.id"), nullable=True)
     name = Column(String, unique=True, nullable=False)
     code = Column(String, unique=True, nullable=False)
     description = Column(String, nullable=True)
@@ -19,6 +20,7 @@ class Department(Base):
     updated_at = Column(DateTime, nullable=True)
 
     __table_args__ = (
+        Index("idx_departments_university_id", "university_id"),
         Index("idx_departments_name", "name"),
         Index("idx_departments_code", "code"),
         Index("idx_departments_is_active", "is_active"),

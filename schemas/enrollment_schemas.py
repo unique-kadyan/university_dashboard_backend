@@ -5,8 +5,6 @@ from pydantic import BaseModel, ConfigDict
 from enums.student_status import StudentStatus
 
 
-# ── Enrollment Schemas ──────────────────────────────────────────────────────
-
 class EnrollmentResponse(BaseModel):
     id: int
     student_id: int

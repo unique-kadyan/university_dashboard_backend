@@ -8,7 +8,7 @@ class HostelAllocation(Base):
     __tablename__ = "hostel_allocations"
 
     id = Column(Integer, primary_key=True, index=True)
-    student_id = Column(Integer, ForeignKey("students.id"), unique=True, nullable=False)
+    student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
     hostel_id = Column(Integer, ForeignKey("hostels.id"), nullable=False)
     room_id = Column(Integer, ForeignKey("hostel_rooms.id"), nullable=False)
     allocation_date = Column(DateTime, default=func.now(), nullable=False)

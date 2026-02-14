@@ -21,8 +21,6 @@ from services.program_course_service import (
 )
 from utils.auth_dependency import get_current_user
 
-# ── Program Endpoints ────────────────────────────────────────────────────────
-
 programs_router = APIRouter(prefix="/api/v1/programs", tags=["Programs"])
 
 

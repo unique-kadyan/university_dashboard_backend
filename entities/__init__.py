@@ -1,32 +1,32 @@
-from entities.admin_staff import *  # noqa: F401, F403
-from entities.assessments import *  # noqa: F401, F403
-from entities.attendance import *  # noqa: F401, F403
-from entities.attendance_summary import *  # noqa: F401, F403
-from entities.audit_logs import *  # noqa: F401, F403
-from entities.book_issues import *  # noqa: F401, F403
-from entities.class_schedules import *  # noqa: F401, F403
-from entities.course_offerings import *  # noqa: F401, F403
-from entities.courses import *  # noqa: F401, F403
-from entities.departments import *  # noqa: F401, F403
-from entities.documents import *  # noqa: F401, F403
-from entities.enrollments import *  # noqa: F401, F403
-from entities.exam_schedules import *  # noqa: F401, F403
-from entities.exam_timetables import *  # noqa: F401, F403
-from entities.faculty import *  # noqa: F401, F403
-from entities.fee_payments import *  # noqa: F401, F403
-from entities.fee_structures import *  # noqa: F401, F403
-from entities.grades import *  # noqa: F401, F403
-from entities.hostel_allocations import *  # noqa: F401, F403
-from entities.hostel_rooms import *  # noqa: F401, F403
-from entities.hostels import *  # noqa: F401, F403
-from entities.library_books import *  # noqa: F401, F403
-from entities.notifications import *  # noqa: F401, F403
-from entities.parents import *  # noqa: F401, F403
-from entities.programs import *  # noqa: F401, F403
-from entities.semester_results import *  # noqa: F401, F403
-from entities.students import *  # noqa: F401, F403
-from entities.system_logs import *  # noqa: F401, F403
-from entities.timetable_slots import *  # noqa: F401, F403
-from entities.universities import *  # noqa: F401, F403
-from entities.user import *  # noqa: F401, F403
-from entities.user_notifications import *  # noqa: F401, F403
+from entities.admin_staff import *
+from entities.assessments import *
+from entities.attendance import *
+from entities.attendance_summary import *
+from entities.audit_logs import *
+from entities.book_issues import *
+from entities.class_schedules import *
+from entities.course_offerings import *
+from entities.courses import *
+from entities.departments import *
+from entities.documents import *
+from entities.enrollments import *
+from entities.exam_schedules import *
+from entities.exam_timetables import *
+from entities.faculty import *
+from entities.fee_payments import *
+from entities.fee_structures import *
+from entities.grades import *
+from entities.hostel_allocations import *
+from entities.hostel_rooms import *
+from entities.hostels import *
+from entities.library_books import *
+from entities.notifications import *
+from entities.parents import *
+from entities.programs import *
+from entities.semester_results import *
+from entities.students import *
+from entities.system_logs import *
+from entities.timetable_slots import *
+from entities.universities import *
+from entities.user import *
+from entities.user_notifications import *

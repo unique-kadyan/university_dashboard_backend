@@ -12,9 +12,6 @@ from sqlalchemy import (
 from configs.db_config import Base
 
 
-# NOTE: This file is NOT registered in __init__.py because course_offerings.py
-# already maps ProgramCourse to the "program_courses" table with more complete columns.
-# This file is kept for reference only. Do not import it alongside course_offerings.py.
 class ProgramCourseLink(Base):
     __tablename__ = "program_course_links"
 

@@ -5,8 +5,6 @@ from pydantic import BaseModel, ConfigDict
 from enums.attendance_status import AttendanceStatus
 
 
-# ── Attendance Schemas ──────────────────────────────────────────────────────
-
 class AttendanceResponse(BaseModel):
     id: int
     enrollment_id: int
@@ -34,8 +32,6 @@ class AttendanceUpdateRequest(BaseModel):
     remarks: Optional[str] = None
 
 
-# ── Bulk Attendance ─────────────────────────────────────────────────────────
-
 class BulkAttendanceItem(BaseModel):
     enrollment_id: int
     student_id: int
@@ -62,8 +58,6 @@ class BulkAttendanceResponse(BaseModel):
     results: list[BulkAttendanceResultItem]
 
 
-# ── Summary ─────────────────────────────────────────────────────────────────
-
 class AttendanceSummaryResponse(BaseModel):
     id: int
     enrollment_id: int
@@ -76,8 +70,6 @@ class AttendanceSummaryResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-
-# ── Reports ─────────────────────────────────────────────────────────────────
 
 class AttendanceReportItem(BaseModel):
     enrollment_id: int
@@ -94,8 +86,6 @@ class AttendanceReportResponse(BaseModel):
     records: list[AttendanceReportItem]
     total: int
 
-
-# ── Defaulters ──────────────────────────────────────────────────────────────
 
 class AttendanceDefaulterItem(BaseModel):
     enrollment_id: int
