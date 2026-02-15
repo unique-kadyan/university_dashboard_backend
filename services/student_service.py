@@ -348,11 +348,20 @@ class StudentService:
             program_id=program_id,
         )
 
-        data = [tuple(str(v) if v is not None else "" for v in row) for row in rows]
+        data = [
+            tuple(self._sanitize_cell(str(v) if v is not None else "") for v in row)
+            for row in rows
+        ]
 
         if format == "csv":
             return self._generate_csv(data)
         return self._generate_excel(data)
+
+    @staticmethod
+    def _sanitize_cell(value: str) -> str:
+        if value and value[0] in ("=", "+", "-", "@", "\t", "\r"):
+            return f"'{value}"
+        return value
 
     def _generate_csv(self, data: list) -> StreamingResponse:
         buffer = io.StringIO()
@@ -383,6 +392,7 @@ class StudentService:
         )
 
     ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+    ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
     MAX_FILE_SIZE = 5 * 1024 * 1024
 
     async def upload_student_photo(
@@ -400,6 +410,15 @@ class StudentService:
                 detail="Only JPEG, PNG, and WebP images are allowed",
             )
 
+        ext = (
+            os.path.splitext(file.filename)[1].lower() if file.filename else ".jpg"
+        )
+        if ext not in self.ALLOWED_IMAGE_EXTENSIONS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only .jpg, .jpeg, .png, and .webp extensions are allowed",
+            )
+
         contents = await file.read()
         if len(contents) > self.MAX_FILE_SIZE:
             raise HTTPException(
@@ -407,7 +426,6 @@ class StudentService:
                 detail="File size must not exceed 5 MB",
             )
 
-        ext = os.path.splitext(file.filename)[1] if file.filename else ".jpg"
         unique_name = f"{student.user_id}_{uuid.uuid4().hex}{ext}"
         upload_dir = os.path.join("uploads", "photos")
         os.makedirs(upload_dir, exist_ok=True)
@@ -430,5 +448,4 @@ class StudentService:
         return PhotoUploadResponse(
             student_id=student.id,
             user_id=student.user_id,
-            profile_picture=file_path,
         )

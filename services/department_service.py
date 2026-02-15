@@ -14,6 +14,7 @@ from schemas.department_schemas import (
     DepartmentUpdateRequest,
 )
 from schemas.student_schemas import PaginatedResponse
+from utils.safe_update import apply_update
 
 
 class DepartmentService:
@@ -136,9 +137,7 @@ class DepartmentService:
                     detail="HOD faculty not found",
                 )
 
-        for field, value in update_data.items():
-            setattr(department, field, value)
-        department.updated_at = datetime.now(timezone.utc)
+        apply_update(department, update_data)
 
         department = await self.department_repository.update_department(department)
         return DepartmentResponse.model_validate(department)

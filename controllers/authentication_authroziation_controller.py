@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Body, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from schemas.auth_login import UserLoginRequest, UserLoginResponse
+from schemas.auth_login import LogoutRequest, UserLoginRequest, UserLoginResponse
 from schemas.auth_schemas import UserRegisterRequest, UserRegisterResponse
 from schemas.reset_password import ForgotPasswordRequest, ResetPasswordRequest
 from services.auth_service import AuthService
@@ -30,9 +30,13 @@ async def login(request: UserLoginRequest, auth_service: AuthService = Depends()
 async def logout(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     current_user: dict = Depends(get_current_user),
+    body: LogoutRequest = Body(default=LogoutRequest()),
     auth_service: AuthService = Depends(),
 ):
-    await auth_service.logout(access_token=credentials.credentials)
+    await auth_service.logout(
+        access_token=credentials.credentials,
+        refresh_token=body.refresh_token,
+    )
     return {"message": "Logged out successfully"}
 
 

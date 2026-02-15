@@ -25,7 +25,7 @@ class Hostel(Base):
     total_rooms = Column(Integer, nullable=False)
     total_capacity = Column(Integer, nullable=False)
     occupied_capacity = Column(Integer, default=0, nullable=False)
-    warden_id = Column(Integer, ForeignKey("admin_staff.id"), nullable=True)
+    warden_id = Column(Integer, ForeignKey("admin_staff.id", ondelete="SET NULL"), nullable=True)
     aminities = Column(JSON, nullable=True)
     rules = Column(JSON, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)

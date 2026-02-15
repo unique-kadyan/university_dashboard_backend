@@ -18,6 +18,7 @@ from schemas.enrollment_schemas import (
     EnrollmentUpdateRequest,
 )
 from schemas.student_schemas import PaginatedResponse
+from utils.safe_update import apply_update
 
 
 class EnrollmentService:
@@ -117,9 +118,7 @@ class EnrollmentService:
                 detail="No fields to update",
             )
 
-        for field, value in update_data.items():
-            setattr(enrollment, field, value)
-        enrollment.updated_at = datetime.now(timezone.utc)
+        apply_update(enrollment, update_data)
 
         enrollment = await self.repo.update_enrollment(enrollment)
         return EnrollmentResponse.model_validate(enrollment)

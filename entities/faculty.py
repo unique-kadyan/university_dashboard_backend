@@ -8,9 +8,9 @@ class Faculty(Base):
     __tablename__ = "faculty"
 
     id = Column(String, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="RESTRICT"), unique=True, nullable=False)
     employee_id = Column(String, unique=True, nullable=False)
-    department_id = Column(Integer, ForeignKey("departments.id"), nullable=False)
+    department_id = Column(Integer, ForeignKey("departments.id", ondelete="RESTRICT"), nullable=False)
     designation = Column(String, nullable=False)
     specialization = Column(String, nullable=True)
     qualification = Column(String, nullable=True)

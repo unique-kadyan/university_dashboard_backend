@@ -1,4 +1,6 @@
 import os
+import re
+
 from dotenv import load_dotenv
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
@@ -13,6 +15,9 @@ DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_SCHEMA = os.getenv("DB_SCHEMA", "student_management")
 
+if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", DB_SCHEMA):
+    raise ValueError(f"Invalid DB_SCHEMA name: {DB_SCHEMA}")
+
 DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 engine = create_async_engine(DATABASE_URL)
@@ -22,7 +27,7 @@ Base = declarative_base()
 
 async def create_schema():
     async with engine.begin() as conn:
-        await conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {DB_SCHEMA}"))
+        await conn.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{DB_SCHEMA}"'))
 
 
 async def create_tables():

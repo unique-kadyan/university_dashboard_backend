@@ -27,6 +27,7 @@ from schemas.fee_schemas import (
     RefundResponse,
 )
 from schemas.student_schemas import PaginatedResponse
+from utils.safe_update import apply_update
 
 
 class FeeStructureService:
@@ -120,9 +121,7 @@ class FeeStructureService:
                 detail="No fields to update",
             )
 
-        for field, value in update_data.items():
-            setattr(fee_structure, field, value)
-        fee_structure.updated_at = datetime.now(timezone.utc)
+        apply_update(fee_structure, update_data)
 
         fee_structure = await self.repo.update_fee_structure(fee_structure)
         return FeeStructureResponse.model_validate(fee_structure)

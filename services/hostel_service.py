@@ -24,6 +24,7 @@ from schemas.hostel_schemas import (
     HostelUpdateRequest,
 )
 from schemas.student_schemas import PaginatedResponse
+from utils.safe_update import apply_update
 
 
 class HostelService:
@@ -101,9 +102,7 @@ class HostelService:
                 detail="No fields to update",
             )
 
-        for field, value in update_data.items():
-            setattr(hostel, field, value)
-        hostel.updated_at = datetime.now(timezone.utc)
+        apply_update(hostel, update_data)
 
         hostel = await self.repo.update_hostel(hostel)
         return HostelResponse.model_validate(hostel)
@@ -210,9 +209,7 @@ class HostelRoomService:
                 detail=f"Cannot reduce capacity below occupied beds ({room.occupied_beds})",
             )
 
-        for field, value in update_data.items():
-            setattr(room, field, value)
-        room.updated_at = datetime.now(timezone.utc)
+        apply_update(room, update_data)
 
         room = await self.repo.update_room(room)
         return HostelRoomResponse.model_validate(room)

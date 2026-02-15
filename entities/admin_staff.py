@@ -8,7 +8,7 @@ class AdminStaff(Base):
     __tablename__ = "admin_staff"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="RESTRICT"), unique=True, nullable=False)
     employee_id = Column(String, unique=True, nullable=False)
     role = Column(AdminStaffRole, nullable=False)
     department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)

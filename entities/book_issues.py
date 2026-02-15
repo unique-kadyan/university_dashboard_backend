@@ -7,7 +7,7 @@ class BookIssue(Base):
     __tablename__ = "book_issues"
 
     id = Column(Integer, primary_key=True, index=True)
-    book_id = Column(Integer, ForeignKey("library_books.id"), nullable=False)
+    book_id = Column(Integer, ForeignKey("library_books.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     issue_date = Column(DateTime, nullable=False)
     due_date = Column(DateTime, nullable=False)

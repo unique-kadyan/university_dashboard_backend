@@ -6,11 +6,11 @@ class Department(Base):
     __tablename__ = "departments"
 
     id = Column(Integer, primary_key=True, index=True)
-    university_id = Column(Integer, ForeignKey("universities.id"), nullable=True)
+    university_id = Column(Integer, ForeignKey("universities.id", ondelete="SET NULL"), nullable=True)
     name = Column(String, unique=True, nullable=False)
     code = Column(String, unique=True, nullable=False)
     description = Column(String, nullable=True)
-    hod_id = Column(String, ForeignKey("faculty.id"), nullable=True)
+    hod_id = Column(String, ForeignKey("faculty.id", ondelete="SET NULL"), nullable=True)
     phone = Column(String, nullable=True)
     email = Column(String, nullable=True)
     building = Column(String, nullable=True)

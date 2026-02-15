@@ -23,7 +23,7 @@ class Course(Base):
     code = Column(String, unique=True, nullable=False)
     description = Column(String, nullable=True)
     credits = Column(Integer, nullable=False)
-    department_id = Column(Integer, ForeignKey("departments.id"), nullable=False)
+    department_id = Column(Integer, ForeignKey("departments.id", ondelete="RESTRICT"), nullable=False)
     course_type = Column(Enum(CourseType), nullable=False)
     level = Column(Enum(Levels), nullable=False)
     max_students = Column(Integer, nullable=True)

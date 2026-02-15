@@ -21,19 +21,13 @@ class AuthService:
 
     async def register(self, request: UserRegisterRequest) -> User:
         existing_email = await self.user_repository.find_by_email(request.email)
-        if existing_email:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Email already registered",
-            )
-
         existing_username = await self.user_repository.find_by_username(
             request.user_name
         )
-        if existing_username:
+        if existing_email or existing_username:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Username already taken",
+                detail="Registration failed. Email or username is already in use.",
             )
 
         hashed_password = pwd_context.hash(request.password)
@@ -133,10 +127,7 @@ class AuthService:
     async def forgot_password(self, email: str) -> None:
         user = await self.user_repository.find_by_email(email)
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Email not found",
-            )
+            return
 
         otp = generate_otp()
         await store_otp(email, otp)

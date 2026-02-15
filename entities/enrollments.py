@@ -7,8 +7,8 @@ class Enrollment(Base):
     __tablename__ = "enrollments"
 
     id = Column(Integer, primary_key=True, index=True)
-    student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
-    program_id = Column(Integer, ForeignKey("programs.id"), nullable=False)
+    student_id = Column(Integer, ForeignKey("students.id", ondelete="RESTRICT"), nullable=False)
+    program_id = Column(Integer, ForeignKey("programs.id", ondelete="RESTRICT"), nullable=False)
     enrollment_date = Column(DateTime, nullable=False)
     status = Column(Enum(StudentStatus), nullable=False)
     grade = Column(String, nullable=True)

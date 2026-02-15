@@ -28,7 +28,7 @@ class UserRepository:
         await self.db.commit()
 
     async def verify_user_email(self, user: User) -> None:
-        user.is_email_verified = True
+        user.is_verified = True
         await self.db.commit()
 
     async def find_by_id(self, user_id: int) -> User | None:

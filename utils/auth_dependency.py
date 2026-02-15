@@ -28,6 +28,8 @@ async def get_current_user(
         )
 
     payload["id"] = payload["sub"]
-    payload["role"] = payload["user_type"]
+    user_type = payload["user_type"]
+    role_map = {"teacher": "faculty"}
+    payload["role"] = role_map.get(user_type, user_type)
 
     return payload

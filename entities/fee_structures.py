@@ -16,8 +16,8 @@ class FeeStructure(Base):
     __tablename__ = "fee_structures"
 
     id = Column(Integer, primary_key=True, index=True)
-    program_id = Column(Integer, ForeignKey("programs.id"), nullable=False)
-    student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
+    program_id = Column(Integer, ForeignKey("programs.id", ondelete="RESTRICT"), nullable=False)
+    student_id = Column(Integer, ForeignKey("students.id", ondelete="RESTRICT"), nullable=False)
     acedamic_year = Column(String, nullable=False)
     semester = Column(Integer, nullable=False)
     tution_fee = Column(Numeric(10, 2), nullable=False)

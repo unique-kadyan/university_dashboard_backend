@@ -31,6 +31,7 @@ from schemas.assessment_grade_schemas import (
     SemesterGPAItem,
 )
 from schemas.student_schemas import PaginatedResponse
+from utils.safe_update import apply_update
 
 
 def _percentage_to_grade(percentage: float) -> tuple[float, str]:
@@ -132,9 +133,7 @@ class AssessmentService:
                 detail="No fields to update",
             )
 
-        for field, value in update_data.items():
-            setattr(assessment, field, value)
-        assessment.updated_at = datetime.now(timezone.utc)
+        apply_update(assessment, update_data)
 
         assessment = await self.repo.update_assessment(assessment)
         return AssessmentResponse.model_validate(assessment)
@@ -254,11 +253,9 @@ class GradeService:
                     detail=f"Marks obtained cannot exceed max marks ({assessment.max_marks})",
                 )
 
-        for field, value in update_data.items():
-            setattr(grade, field, value)
+        apply_update(grade, update_data)
         grade.graded_by = graded_by
         grade.graded_at = datetime.now(timezone.utc)
-        grade.updated_at = datetime.now(timezone.utc)
 
         grade = await self.repo.update_grade(grade)
         return GradeDetailResponse.model_validate(grade)

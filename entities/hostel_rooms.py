@@ -24,7 +24,7 @@ class HostelRoom(Base):
     id = Column(Integer, primary_key=True, index=True)
     room_number = Column(String, unique=True, nullable=False)
     room_type = Column(Enum(HostelRoomType), nullable=False)
-    hostel_id = Column(Integer, ForeignKey("hostels.id"), nullable=False)
+    hostel_id = Column(Integer, ForeignKey("hostels.id", ondelete="CASCADE"), nullable=False)
     floor = Column(Integer, nullable=True)
     capacity = Column(Integer, nullable=False)
     occupied_beds = Column(Integer, default=0, nullable=False)

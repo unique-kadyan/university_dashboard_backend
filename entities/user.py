@@ -30,8 +30,8 @@ class User(Base):
     last_login = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, nullable=True)
-    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
-    updated_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    updated_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     __table_args__ = (
         Index("idx_users_email", "email"),

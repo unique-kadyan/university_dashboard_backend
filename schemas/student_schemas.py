@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Generic, List, Optional, TypeVar
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from enums.gender import Gender
 from enums.category import Category
 from enums.status import Status
@@ -130,7 +130,6 @@ class DocumentResponse(BaseModel):
     title: str
     description: Optional[str] = None
     document_type: str
-    file_path: str
     file_name: str
     file_size: int
     mime_type: Optional[str] = None
@@ -152,7 +151,7 @@ class StudentDocumentsResponse(BaseModel):
 class PhotoUploadResponse(BaseModel):
     student_id: int
     user_id: int
-    profile_picture: str
+    message: str = "Photo uploaded successfully"
 
 
 class StudentSearchResult(BaseModel):
@@ -172,8 +171,8 @@ class StudentSearchResult(BaseModel):
 
 class StudentRegisterRequest(BaseModel):
     email: EmailStr
-    user_name: str
-    password: str
+    user_name: str = Field(min_length=3, max_length=50)
+    password: str = Field(min_length=8, max_length=128)
     first_name: str
     middle_name: Optional[str] = None
     last_name: str

@@ -25,6 +25,7 @@ from schemas.library_schemas import (
     PayFineResponse,
 )
 from schemas.student_schemas import PaginatedResponse
+from utils.safe_update import apply_update
 
 FINE_PER_DAY = Decimal("5.00")
 
@@ -124,9 +125,7 @@ class LibraryBookService:
                 )
             book.copies_available = new_total - issued
 
-        for field, value in update_data.items():
-            setattr(book, field, value)
-        book.updated_at = datetime.now(timezone.utc)
+        apply_update(book, update_data)
 
         book = await self.repo.update_book(book)
         return BookResponse.model_validate(book)

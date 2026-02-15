@@ -20,6 +20,7 @@ from schemas.faculty_schemas import (
     FacultyUpdateRequest,
 )
 from schemas.student_schemas import PaginatedResponse
+from utils.safe_update import apply_update
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -184,9 +185,7 @@ class FacultyService:
                 detail="No fields to update",
             )
 
-        for field, value in update_data.items():
-            setattr(faculty, field, value)
-        faculty.updated_at = datetime.now(timezone.utc)
+        apply_update(faculty, update_data)
 
         faculty = await self.faculty_repository.update_faculty(faculty)
         return FacultyResponse.model_validate(faculty)

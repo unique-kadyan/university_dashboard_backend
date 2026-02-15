@@ -6,7 +6,7 @@ class AttendanceSummary(Base):
     __tablename__ = "attendance_summary"
 
     id = Column(Integer, primary_key=True, index=True)
-    enrollment_id = Column(Integer, ForeignKey("enrollments.id"), nullable=False)
+    enrollment_id = Column(Integer, ForeignKey("enrollments.id", ondelete="CASCADE"), nullable=False)
     total_classes = Column(Integer, nullable=False)
     attended_classes = Column(Integer, nullable=False)
     attendance_percentage = Column(Numeric(5, 3), nullable=False)

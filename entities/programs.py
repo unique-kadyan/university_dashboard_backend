@@ -11,7 +11,7 @@ class Program(Base):
     code = Column(String, unique=True, nullable=False)
     description = Column(String, nullable=True)
     degree_type = Column(DegreeType, nullable=False)
-    department_id = Column(Integer, ForeignKey("departments.id"), nullable=False)
+    department_id = Column(Integer, ForeignKey("departments.id", ondelete="RESTRICT"), nullable=False)
     duration_years = Column(Integer, nullable=False)
     total_semesters = Column(Integer, nullable=False)
     total_credits = Column(Integer, nullable=False)

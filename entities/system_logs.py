@@ -13,7 +13,7 @@ class SystemLog(Base):
     module = Column(String, nullable=True)
     function = Column(String, nullable=True)
     stack_trace = Column(String, nullable=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     request_id = Column(String, nullable=True)
     timestamp = Column(DateTime, default=func.now(), nullable=False)
 

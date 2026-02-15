@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from typing import Optional
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from enums.employment_type import EmploymentType
 from enums.faculty_status import Status
 from enums.gender import Gender
@@ -39,8 +39,8 @@ class FacultyUpdateRequest(BaseModel):
 
 class FacultyRegisterRequest(BaseModel):
     email: EmailStr
-    user_name: str
-    password: str
+    user_name: str = Field(min_length=3, max_length=50)
+    password: str = Field(min_length=8, max_length=128)
     first_name: str
     middle_name: Optional[str] = None
     last_name: str

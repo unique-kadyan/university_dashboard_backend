@@ -18,6 +18,7 @@ from schemas.attendance_schemas import (
     BulkAttendanceResultItem,
 )
 from schemas.student_schemas import PaginatedResponse
+from utils.safe_update import apply_update
 
 
 class AttendanceService:
@@ -100,9 +101,7 @@ class AttendanceService:
                 detail="No fields to update",
             )
 
-        for field, value in update_data.items():
-            setattr(attendance, field, value)
-        attendance.updated_at = datetime.now(timezone.utc)
+        apply_update(attendance, update_data)
 
         attendance = await self.repo.update_attendance(attendance)
         return AttendanceResponse.model_validate(attendance)

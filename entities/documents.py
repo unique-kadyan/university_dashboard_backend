@@ -20,7 +20,7 @@ class Document(Base):
     __tablename__ = "documents"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     title = Column(String, nullable=False)
     description = Column(String, nullable=True)
     document_type = Column(Enum(DocumentType), nullable=False)
@@ -28,7 +28,7 @@ class Document(Base):
     file_name = Column(String, nullable=False)
     file_size = Column(Integer, nullable=False)
     mime_type = Column(String, nullable=True)
-    uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    uploaded_by = Column(Integer, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     related_entity_type = Column(String, nullable=True)
     related_entity_id = Column(Integer, nullable=True)
     is_public = Column(Boolean, default=False, nullable=False)

@@ -19,8 +19,8 @@ class FeePayment(Base):
     __tablename__ = "fee_payments"
 
     id = Column(Integer, primary_key=True, index=True)
-    student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
-    fee_structure_id = Column(Integer, ForeignKey("fee_structures.id"), nullable=False)
+    student_id = Column(Integer, ForeignKey("students.id", ondelete="RESTRICT"), nullable=False)
+    fee_structure_id = Column(Integer, ForeignKey("fee_structures.id", ondelete="RESTRICT"), nullable=False)
     amount_paid = Column(Numeric(10, 2), nullable=False)
     payment_date = Column(Date, nullable=False)
     payment_mode = Column(Enum(PaymentMode), nullable=False)

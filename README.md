@@ -34,7 +34,11 @@ StudentManagement/
 │   ├── fees_management_controller.py
 │   ├── library_management_controllers.py
 │   ├── hostel_management_controller.py
-│   └── examination_management_controller.py
+│   ├── examination_management_controller.py
+│   ├── timetable_management.py
+│   ├── notification_management_controller.py
+│   ├── document_management_controller.py
+│   └── reports_analytics_controller.py
 ├── services/                      # Business logic
 │   ├── auth_service.py
 │   ├── student_service.py
@@ -47,7 +51,11 @@ StudentManagement/
 │   ├── fee_service.py
 │   ├── library_service.py
 │   ├── hostel_service.py
-│   └── exam_service.py
+│   ├── exam_service.py
+│   ├── timetable_service.py
+│   ├── notification_service.py
+│   ├── document_service.py
+│   └── report_service.py
 ├── repositories/                  # Data access layer
 │   ├── user_repository.py
 │   ├── student_repository.py
@@ -60,7 +68,11 @@ StudentManagement/
 │   ├── fee_repository.py
 │   ├── library_repository.py
 │   ├── hostel_repository.py
-│   └── exam_repository.py
+│   ├── exam_repository.py
+│   ├── timetable_repository.py
+│   ├── notification_repository.py
+│   ├── document_repository.py
+│   └── report_repository.py
 ├── entities/                      # SQLAlchemy ORM models
 ├── schemas/                       # Pydantic request/response models
 ├── dtos/                          # Data transfer objects
@@ -70,7 +82,8 @@ StudentManagement/
     ├── token_blacklist.py         # Redis-based token blacklist
     ├── auth_dependency.py         # FastAPI auth dependency
     ├── otp_handler.py             # OTP generation, storage & verification
-    └── email_sender.py            # Email sending via SMTP
+    ├── email_sender.py            # Email sending via SMTP
+    └── safe_update.py             # Protected-field-aware entity updater
 ```
 
 ## Architecture
@@ -568,6 +581,140 @@ Accepts a multipart file upload (JPEG, PNG, or WebP, max 5 MB). Updates the user
 
 **Student exam schedule:** The `GET /student/{id}` endpoint returns all exam timetable entries for a student based on the programs they are enrolled in. Each entry includes the exam name, type, date, time, venue, duration, and max marks.
 
+### Timetable (`/api/v1/timetable`)
+
+| Method | Endpoint              | Description                                | Auth Required     |
+|--------|-----------------------|--------------------------------------------|-------------------|
+| POST   | `/generate`           | Generate class schedules (bulk)            | Yes (admin/staff) |
+| GET    | `/student/{id}`       | Get a student's weekly timetable           | Yes               |
+| GET    | `/faculty/{id}`       | Get a faculty member's weekly timetable    | Yes               |
+| GET    | `/room/{number}`      | Get a room's weekly timetable              | Yes               |
+| GET    | `/`                   | List all class schedules (paginated)       | Yes               |
+| PUT    | `/{id}`               | Update a class schedule                    | Yes (admin/staff) |
+
+**GET `/` query parameters:**
+
+| Parameter            | Type   | Default | Description                |
+|----------------------|--------|---------|----------------------------|
+| `page`               | int    | 1       | Page number (min 1)        |
+| `page_size`          | int    | 10      | Items per page (1-100)     |
+| `course_offering_id` | int    | null    | Filter by course offering  |
+| `slot_id`            | int    | null    | Filter by timetable slot   |
+| `room_no`            | string | null    | Filter by room number      |
+| `is_active`          | bool   | null    | Filter by active status    |
+
+**POST `/generate`:** Accepts a list of `{course_offering_id, slot_id, room_no}` items. Validates that each course offering and slot exist, checks for room-slot conflicts, and bulk creates class schedules.
+
+**Student/Faculty/Room timetable:** Returns the weekly schedule grouped by entries, each containing course name, code, day of week, start/end time, room number, and slot type.
+
+### Notifications (`/api/v1/notifications`)
+
+| Method | Endpoint              | Description                           | Auth Required     |
+|--------|-----------------------|---------------------------------------|-------------------|
+| GET    | `/unread`             | Get unread notification count         | Yes               |
+| POST   | `/`                   | Send a new notification               | Yes (admin/staff) |
+| GET    | `/`                   | List notifications for current user   | Yes               |
+| GET    | `/{id}`               | Get notification details              | Yes               |
+| PUT    | `/{id}/read`          | Mark a notification as read           | Yes               |
+| DELETE | `/{id}`               | Delete a notification                 | Yes (admin/staff) |
+
+**GET `/` query parameters:**
+
+| Parameter | Type | Default | Description            |
+|-----------|------|---------|------------------------|
+| `page`    | int  | 1       | Page number (min 1)    |
+| `page_size` | int | 10    | Items per page (1-100) |
+
+**POST `/`:** Creates a notification and fans out `UserNotification` records based on `target_audience`. Supported audiences: `all`, `students`, `faculty`, `staff`, `specific` (requires `target_id` list).
+
+### Documents (`/api/v1/documents`)
+
+| Method | Endpoint              | Description                           | Auth Required     |
+|--------|-----------------------|---------------------------------------|-------------------|
+| GET    | `/search`             | Search documents by title/description | Yes               |
+| POST   | `/upload`             | Upload a new document                 | Yes               |
+| GET    | `/`                   | List all documents (paginated)        | Yes               |
+| GET    | `/{id}`               | Get document metadata                 | Yes               |
+| GET    | `/{id}/download`      | Download document file                | Yes               |
+| DELETE | `/{id}`               | Delete a document                     | Yes (admin/staff) |
+
+**GET `/` query parameters:**
+
+| Parameter       | Type   | Default | Description                |
+|-----------------|--------|---------|----------------------------|
+| `page`          | int    | 1       | Page number (min 1)        |
+| `page_size`     | int    | 10      | Items per page (1-100)     |
+| `user_id`       | int    | null    | Filter by uploader         |
+| `document_type` | string | null    | Filter by document type    |
+
+**GET `/search` query parameters:**
+
+| Parameter | Type   | Default | Description                          |
+|-----------|--------|---------|--------------------------------------|
+| `q`       | string | —       | Search term (matches title, description, file name) |
+| `limit`   | int    | 20      | Max results (1-100)                  |
+
+**POST `/upload`:** Accepts a multipart form with `file` (required), `title`, `description`, `document_type`, `related_entity_type`, `related_entity_id`, `is_public`, `tags`. Allowed file types: PDF, JPEG, PNG, WebP, DOC, DOCX, XLS, XLSX, TXT, CSV. Max file size: 10 MB.
+
+### Reports (`/api/v1/reports`)
+
+| Method | Endpoint              | Description                              | Auth Required     |
+|--------|-----------------------|------------------------------------------|-------------------|
+| GET    | `/student-performance`| Student performance summary              | Yes (admin/staff) |
+| GET    | `/attendance`         | Attendance statistics                    | Yes (admin/staff) |
+| GET    | `/fee-collection`     | Fee collection summary                   | Yes (admin/staff) |
+| GET    | `/exam-results`       | Exam results statistics                  | Yes (admin/staff) |
+| GET    | `/library-stats`      | Library usage statistics                 | Yes (admin/staff) |
+| GET    | `/hostel-occupancy`   | Hostel occupancy report                  | Yes (admin/staff) |
+| GET    | `/department-wise`    | Department-wise statistics               | Yes (admin/staff) |
+
+**GET `/student-performance` query parameters:**
+
+| Parameter       | Type   | Default | Description                |
+|-----------------|--------|---------|----------------------------|
+| `department_id` | int    | null    | Filter by department       |
+| `program_id`    | int    | null    | Filter by program          |
+| `academic_year` | string | null    | Filter by academic year    |
+
+**GET `/attendance` query parameters:**
+
+| Parameter            | Type | Default | Description                |
+|----------------------|------|---------|----------------------------|
+| `department_id`      | int  | null    | Filter by department       |
+| `course_offering_id` | int  | null    | Filter by course offering  |
+
+**GET `/fee-collection` query parameters:**
+
+| Parameter       | Type   | Default | Description                |
+|-----------------|--------|---------|----------------------------|
+| `academic_year` | string | null    | Filter by academic year    |
+| `semester`      | int    | null    | Filter by semester         |
+| `department_id` | int    | null    | Filter by department       |
+
+**GET `/exam-results` query parameters:**
+
+| Parameter       | Type   | Default | Description                |
+|-----------------|--------|---------|----------------------------|
+| `academic_year` | string | null    | Filter by academic year    |
+| `semester`      | int    | null    | Filter by semester         |
+
+### Analytics (`/api/v1/analytics`)
+
+| Method | Endpoint              | Description                              | Auth Required     |
+|--------|-----------------------|------------------------------------------|-------------------|
+| GET    | `/dashboard`          | Dashboard summary statistics             | Yes (admin/staff) |
+| GET    | `/trends`             | Enrollment, fee, and attendance trends   | Yes (admin/staff) |
+
+**GET `/trends` query parameters:**
+
+| Parameter | Type | Default | Description                    |
+|-----------|------|---------|--------------------------------|
+| `months`  | int  | 12      | Number of months to analyze (1-60) |
+
+**Dashboard:** Returns total counts for students, faculty, departments, programs, courses, active enrollments, total fees collected, library books, and hostel occupancy percentage.
+
+**Trends:** Returns monthly time-series data for enrollment counts, fee collection amounts, and attendance counts over the specified period.
+
 ## Role-Based Access
 
 | Role    | Permissions                                                              |
@@ -576,6 +723,46 @@ Accepts a multipart file upload (JPEG, PNG, or WebP, max 5 MB). Updates the user
 | staff   | Full access to all endpoints                                             |
 | faculty | Read access + create/update attendance, assessments, and grades          |
 | student | Read-only access to own data (enrollments, attendance, grades, fees)     |
+
+## Security
+
+### Authentication & Tokens
+
+- **JWT** with separate access (30 min) and refresh (7 day) tokens
+- JWT secret key is **required** via environment variable (no fallback default)
+- Logout blacklists **both** access and refresh tokens via Redis
+- Refresh token type is validated before issuing new tokens
+
+### Password & OTP
+
+- Minimum **8 characters** enforced on all password fields (register, login, reset)
+- Usernames require **3–50 characters**
+- Passwords hashed with **bcrypt** (passlib)
+- OTPs generated with `secrets` (cryptographically secure RNG)
+- OTP verification rate-limited to **5 attempts** per email, tracked in Redis
+
+### API Security
+
+- **CORS** middleware with configurable allowed origins (`CORS_ORIGINS` env var)
+- Security headers on every response: `X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, `Referrer-Policy`
+- Generic error messages on login/registration to prevent **user enumeration**
+- Reload mode disabled by default; only enabled when `APP_ENV=development`
+
+### File Uploads
+
+- **Dual validation**: MIME type allowlist + file extension allowlist
+- **Chunked size check**: file read in 1 MB chunks, rejected immediately if over 10 MB (documents) or 5 MB (photos)
+- Allowed document types: PDF, JPEG, PNG, WebP, DOC, DOCX, XLS, XLSX, TXT, CSV
+- Allowed photo extensions: `.jpg`, `.jpeg`, `.png`, `.webp`
+- File paths **not exposed** in API responses
+
+### Data Access
+
+- Document download/view enforces **ownership checks** (owner, public, or admin/staff)
+- Update operations filter out **protected fields** (`id`, `created_at`, `created_by`) via `apply_update()` utility
+- CSV/Excel exports **sanitize cell values** to prevent formula injection
+- Foreign keys configured with `ondelete` policies (CASCADE, SET NULL, or RESTRICT) to maintain referential integrity
+- SQL injection prevented: ORM parameterized queries + schema name validation with regex
 
 ## Setup
 
@@ -604,8 +791,8 @@ REDIS_PORT=6379
 REDIS_DB=0
 REDIS_PASSWORD=
 
-# JWT
-JWT_SECRET_KEY=your-secret-key-here
+# JWT (REQUIRED — app will not start without JWT_SECRET_KEY)
+JWT_SECRET_KEY=generate-a-strong-random-secret-here
 JWT_ALGORITHM=HS256
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
 JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
@@ -616,7 +803,13 @@ SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
 SMTP_FROM_EMAIL=your-email@gmail.com
+
+# App
+APP_ENV=development
+CORS_ORIGINS=http://localhost:3000
 ```
+
+> `JWT_SECRET_KEY` is **required** — the app raises a `RuntimeError` on startup if it is not set. Generate one with: `python -c "import secrets; print(secrets.token_urlsafe(64))"`
 
 > For Gmail, use an [App Password](https://myaccount.google.com/apppasswords) instead of your regular password.
 

@@ -14,7 +14,7 @@ class LibraryBook(Base):
     year_of_publication = Column(Integer, nullable=True)
     edition = Column(String, nullable=True)
     category = Column(String, nullable=True)
-    department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
+    department_id = Column(Integer, ForeignKey("departments.id", ondelete="SET NULL"), nullable=True)
     language = Column(String, nullable=True)
     pages = Column(Integer, nullable=True)
     price = Column(Numeric(10, 2), nullable=True)

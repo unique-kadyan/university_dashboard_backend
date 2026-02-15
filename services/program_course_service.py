@@ -21,6 +21,7 @@ from schemas.program_course_schemas import (
     ProgramUpdateRequest,
 )
 from schemas.student_schemas import PaginatedResponse
+from utils.safe_update import apply_update
 
 
 class ProgramService:
@@ -135,9 +136,7 @@ class ProgramService:
                     detail="Department not found",
                 )
 
-        for field, value in update_data.items():
-            setattr(program, field, value)
-        program.updated_at = datetime.now(timezone.utc)
+        apply_update(program, update_data)
 
         program = await self.repo.update_program(program)
         return ProgramResponse.model_validate(program)
@@ -289,9 +288,7 @@ class CourseService:
                     detail="Department not found",
                 )
 
-        for field, value in update_data.items():
-            setattr(course, field, value)
-        course.updated_at = datetime.now(timezone.utc)
+        apply_update(course, update_data)
 
         course = await self.repo.update_course(course)
         return CourseResponse.model_validate(course)
@@ -422,9 +419,7 @@ class CourseOfferingService:
                 detail="No fields to update",
             )
 
-        for field, value in update_data.items():
-            setattr(offering, field, value)
-        offering.updated_at = datetime.now(timezone.utc)
+        apply_update(offering, update_data)
 
         offering = await self.repo.update_offering(offering)
         return CourseOfferingResponse.model_validate(offering)

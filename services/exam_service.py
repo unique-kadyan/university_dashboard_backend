@@ -22,6 +22,7 @@ from schemas.exam_schemas import (
     StudentExamScheduleResponse,
 )
 from schemas.student_schemas import PaginatedResponse
+from utils.safe_update import apply_update
 
 
 class ExamScheduleService:
@@ -126,9 +127,7 @@ class ExamScheduleService:
         if "status" in update_data:
             update_data["status"] = ExamStatus(update_data["status"])
 
-        for field, value in update_data.items():
-            setattr(exam_schedule, field, value)
-        exam_schedule.updated_at = datetime.now(timezone.utc)
+        apply_update(exam_schedule, update_data)
 
         exam_schedule = await self.repo.update_exam_schedule(exam_schedule)
         return ExamScheduleResponse.model_validate(exam_schedule)
@@ -246,9 +245,7 @@ class ExamTimetableService:
                     detail="Course offering not found",
                 )
 
-        for field, value in update_data.items():
-            setattr(timetable, field, value)
-        timetable.updated_at = datetime.now(timezone.utc)
+        apply_update(timetable, update_data)
 
         timetable = await self.repo.update_exam_timetable(timetable)
         return ExamTimetableResponse.model_validate(timetable)
