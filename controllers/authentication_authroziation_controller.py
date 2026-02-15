@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Body, Depends, status
+from fastapi import APIRouter, Body, Depends, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from schemas.auth_login import LogoutRequest, UserLoginRequest, UserLoginResponse
 from schemas.auth_schemas import UserRegisterRequest, UserRegisterResponse
 from schemas.reset_password import ForgotPasswordRequest, ResetPasswordRequest
 from services.auth_service import AuthService
 from utils.auth_dependency import get_current_user
+from gateway.rate_limiter import limiter
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Authentication & Authorization"])
 bearer_scheme = HTTPBearer()
@@ -15,14 +16,20 @@ bearer_scheme = HTTPBearer()
     response_model=UserRegisterResponse,
     status_code=status.HTTP_201_CREATED,
 )
-async def register(request: UserRegisterRequest, auth_service: AuthService = Depends()):
-    user = await auth_service.register(request)
+@limiter.limit("5/minute")
+async def register(
+    request: Request, data: UserRegisterRequest, auth_service: AuthService = Depends()
+):
+    user = await auth_service.register(data)
     return user
 
 
 @router.post("/login", response_model=UserLoginResponse)
-async def login(request: UserLoginRequest, auth_service: AuthService = Depends()):
-    token = await auth_service.login(request)
+@limiter.limit("10/minute")
+async def login(
+    request: Request, data: UserLoginRequest, auth_service: AuthService = Depends()
+):
+    token = await auth_service.login(data)
     return token
 
 
@@ -41,7 +48,9 @@ async def logout(
 
 
 @router.post("/refresh", response_model=UserLoginResponse)
+@limiter.limit("20/minute")
 async def refresh_token(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     auth_service: AuthService = Depends(),
 ):
@@ -50,26 +59,29 @@ async def refresh_token(
 
 
 @router.post("/forgot-password", status_code=status.HTTP_200_OK)
+@limiter.limit("5/minute")
 async def forgot_password(
-    request: ForgotPasswordRequest, auth_service: AuthService = Depends()
+    request: Request, data: ForgotPasswordRequest, auth_service: AuthService = Depends()
 ):
-    await auth_service.forgot_password(request.email)
+    await auth_service.forgot_password(data.email)
     return {"message": "OTP has been sent to your email"}
 
 
 @router.post("/reset-password", status_code=status.HTTP_200_OK)
+@limiter.limit("5/minute")
 async def reset_password(
-    request: ResetPasswordRequest, auth_service: AuthService = Depends()
+    request: Request, data: ResetPasswordRequest, auth_service: AuthService = Depends()
 ):
-    await auth_service.reset_password(request)
+    await auth_service.reset_password(data)
     return {"message": "Password has been reset successfully"}
 
 
 @router.post("/verify-email", status_code=status.HTTP_200_OK)
+@limiter.limit("5/minute")
 async def verify_email(
-    request: ResetPasswordRequest, auth_service: AuthService = Depends()
+    request: Request, data: ResetPasswordRequest, auth_service: AuthService = Depends()
 ):
-    await auth_service.verify_email(request)
+    await auth_service.verify_email(data)
     return {"message": "Email has been verified successfully"}
 
 

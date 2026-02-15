@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from uvicorn import uvicorn
 
 from configs.db_config import create_schema, create_tables, engine
+from gateway import setup_gateway
 
 from controllers.authentication_authroziation_controller import router as auth_router
 from controllers.students_management_controller import router as students_router
@@ -67,6 +68,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+setup_gateway(app, log_level=os.getenv("LOG_LEVEL", "INFO"))
+
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
@@ -107,11 +110,6 @@ app.include_router(analytics_router)
 @app.get("/")
 async def root():
     return {"message": "Welcome to Student Management System"}
-
-
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
 
 
 if __name__ == "__main__":

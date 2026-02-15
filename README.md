@@ -11,6 +11,7 @@ A comprehensive Student Management System built with FastAPI, PostgreSQL, and Re
 - **Password Hashing:** passlib (bcrypt)
 - **Email:** SMTP (Gmail compatible)
 - **Validation:** Pydantic v2
+- **Rate Limiting:** slowapi (Redis-backed)
 
 ## Project Structure
 
@@ -22,6 +23,14 @@ StudentManagement/
 │   ├── jwt_config.py              # JWT settings
 │   ├── redis_config.py            # Redis connection
 │   └── email_config.py            # SMTP settings
+├── gateway/                       # API gateway middleware
+│   ├── __init__.py                # setup_gateway() orchestrator
+│   ├── request_context.py         # Request ID generation & context
+│   ├── middleware.py              # Request timing (X-Process-Time)
+│   ├── rate_limiter.py            # Redis-backed rate limiting
+│   ├── error_handlers.py          # Global exception handlers
+│   ├── logging_middleware.py      # Structured JSON request logging
+│   └── health.py                  # Enhanced health check (DB + Redis)
 ├── controllers/                   # API route handlers
 │   ├── authentication_authroziation_controller.py
 │   ├── students_management_controller.py
@@ -89,19 +98,35 @@ StudentManagement/
 ## Architecture
 
 ```
-Controller → Service → Repository → Database
-     ↑                      ↑
-  Depends()              Depends(get_db)
+Request → Gateway Middleware → Controller → Service → Repository → Database
+              ↓                    ↑                      ↑
+    Rate Limit, Logging,       Depends()              Depends(get_db)
+    Request ID, Timing,
+    Error Handling
 ```
 
 Database session is injected only at the repository level via FastAPI's dependency injection.
+
+### Gateway Middleware Stack
+
+Every request passes through the gateway middleware in this order:
+
+```
+CORSMiddleware (origin validation, preflight)
+  → RequestContextMiddleware (assigns X-Request-ID)
+    → RequestTimingMiddleware (adds X-Process-Time header)
+      → RequestLoggingMiddleware (structured JSON logs)
+        → SlowAPIMiddleware (rate limit enforcement)
+          → Security Headers (X-Frame-Options, etc.)
+            → Route Handler
+```
 
 ## API Endpoints
 
 ### Authentication (`/api/v1/auth`)
 
 | Method | Endpoint           | Description                          | Auth Required |
-|--------|--------------------|------------------------------------- |---------------|
+| ------ | ------------------ | ------------------------------------ | ------------- |
 | POST   | `/register`        | Register a new user                  | No            |
 | POST   | `/login`           | Login and get JWT tokens             | No            |
 | POST   | `/logout`          | Revoke access token                  | Yes           |
@@ -113,26 +138,26 @@ Database session is injected only at the repository level via FastAPI's dependen
 
 ### Students (`/api/v1/students`)
 
-| Method | Endpoint              | Description                                      | Auth Required     |
-|--------|-----------------------|--------------------------------------------------|-------------------|
-| GET    | `/`                   | List all students (paginated, filterable)         | Yes               |
-| POST   | `/`                   | Register a new student (creates user + student)   | Yes               |
-| GET    | `/search`             | Search students by name, email, ID, admission no. | Yes              |
-| GET    | `/export`             | Export students as CSV or Excel                   | Yes (admin/staff) |
-| GET    | `/{id}`               | Get student by ID                                 | Yes               |
-| PUT    | `/{id}`               | Update student details                            | Yes               |
-| DELETE | `/{id}`               | Soft delete student (sets inactive)               | Yes               |
-| GET    | `/{id}/enrollments`   | Get student enrollments                           | Yes               |
-| GET    | `/{id}/attendance`    | Get student attendance records                    | Yes               |
-| GET    | `/{id}/grades`        | Get student grades                                | Yes               |
-| GET    | `/{id}/fees`          | Get student fee payments                          | Yes               |
-| GET    | `/{id}/documents`     | Get student documents                             | Yes               |
-| POST   | `/{id}/upload-photo`  | Upload student profile photo                      | Yes               |
+| Method | Endpoint             | Description                                       | Auth Required     |
+| ------ | -------------------- | ------------------------------------------------- | ----------------- |
+| GET    | `/`                  | List all students (paginated, filterable)         | Yes               |
+| POST   | `/`                  | Register a new student (creates user + student)   | Yes               |
+| GET    | `/search`            | Search students by name, email, ID, admission no. | Yes               |
+| GET    | `/export`            | Export students as CSV or Excel                   | Yes (admin/staff) |
+| GET    | `/{id}`              | Get student by ID                                 | Yes               |
+| PUT    | `/{id}`              | Update student details                            | Yes               |
+| DELETE | `/{id}`              | Soft delete student (sets inactive)               | Yes               |
+| GET    | `/{id}/enrollments`  | Get student enrollments                           | Yes               |
+| GET    | `/{id}/attendance`   | Get student attendance records                    | Yes               |
+| GET    | `/{id}/grades`       | Get student grades                                | Yes               |
+| GET    | `/{id}/fees`         | Get student fee payments                          | Yes               |
+| GET    | `/{id}/documents`    | Get student documents                             | Yes               |
+| POST   | `/{id}/upload-photo` | Upload student profile photo                      | Yes               |
 
 **GET `/` query parameters:**
 
 | Parameter        | Type   | Default | Description                              |
-|------------------|--------|---------|------------------------------------------|
+| ---------------- | ------ | ------- | ---------------------------------------- |
 | `page`           | int    | 1       | Page number (min 1)                      |
 | `page_size`      | int    | 10      | Items per page (1-100)                   |
 | `student_status` | string | null    | Filter by status                         |
@@ -146,19 +171,19 @@ Database session is injected only at the repository level via FastAPI's dependen
 **GET `/search` query parameters:**
 
 | Parameter | Type   | Default | Description                                             |
-|-----------|--------|---------|---------------------------------------------------------|
+| --------- | ------ | ------- | ------------------------------------------------------- |
 | `q`       | string | —       | Search term (matches name, email, student ID, adm. no.) |
 | `limit`   | int    | 20      | Max results (1-100)                                     |
 
 **GET `/export` query parameters:**
 
-| Parameter        | Type   | Default | Description                       |
-|------------------|--------|---------|-----------------------------------|
-| `format`         | string | csv     | Export format: `csv` or `xlsx`    |
-| `student_status` | string | null    | Filter by status                  |
-| `batch_year`     | int    | null    | Filter by batch year              |
-| `department_id`  | int    | null    | Filter by department              |
-| `program_id`     | int    | null    | Filter by program                 |
+| Parameter        | Type   | Default | Description                    |
+| ---------------- | ------ | ------- | ------------------------------ |
+| `format`         | string | csv     | Export format: `csv` or `xlsx` |
+| `student_status` | string | null    | Filter by status               |
+| `batch_year`     | int    | null    | Filter by batch year           |
+| `department_id`  | int    | null    | Filter by department           |
+| `program_id`     | int    | null    | Filter by program              |
 
 **POST `/{id}/upload-photo`:**
 
@@ -166,123 +191,123 @@ Accepts a multipart file upload (JPEG, PNG, or WebP, max 5 MB). Updates the user
 
 ### Faculty (`/api/v1/faculty`)
 
-| Method | Endpoint              | Description                           | Auth Required          |
-|--------|-----------------------|---------------------------------------|------------------------|
-| GET    | `/`                   | List all faculty (paginated)          | Yes                    |
-| POST   | `/`                   | Register a new faculty member         | Yes (admin/staff)      |
-| GET    | `/{id}`               | Get faculty by ID                     | Yes                    |
-| PUT    | `/{id}`               | Update faculty details                | Yes (admin/staff)      |
-| DELETE | `/{id}`               | Delete faculty                        | Yes (admin/staff)      |
-| GET    | `/{id}/courses`       | Get courses taught by faculty         | Yes                    |
-| GET    | `/{id}/schedule`      | Get faculty class schedule            | Yes                    |
-| GET    | `/{id}/students`      | Get students under faculty            | Yes                    |
-| POST   | `/{id}/upload-photo`  | Upload faculty profile photo          | Yes (admin/staff/self) |
+| Method | Endpoint             | Description                   | Auth Required          |
+| ------ | -------------------- | ----------------------------- | ---------------------- |
+| GET    | `/`                  | List all faculty (paginated)  | Yes                    |
+| POST   | `/`                  | Register a new faculty member | Yes (admin/staff)      |
+| GET    | `/{id}`              | Get faculty by ID             | Yes                    |
+| PUT    | `/{id}`              | Update faculty details        | Yes (admin/staff)      |
+| DELETE | `/{id}`              | Delete faculty                | Yes (admin/staff)      |
+| GET    | `/{id}/courses`      | Get courses taught by faculty | Yes                    |
+| GET    | `/{id}/schedule`     | Get faculty class schedule    | Yes                    |
+| GET    | `/{id}/students`     | Get students under faculty    | Yes                    |
+| POST   | `/{id}/upload-photo` | Upload faculty profile photo  | Yes (admin/staff/self) |
 
 **GET `/` query parameters:**
 
-| Parameter         | Type   | Default | Description                                                  |
-|-------------------|--------|---------|--------------------------------------------------------------|
-| `page`            | int    | 1       | Page number (min 1)                                          |
-| `page_size`       | int    | 10      | Items per page (1-100)                                       |
+| Parameter         | Type   | Default | Description                                                         |
+| ----------------- | ------ | ------- | ------------------------------------------------------------------- |
+| `page`            | int    | 1       | Page number (min 1)                                                 |
+| `page_size`       | int    | 10      | Items per page (1-100)                                              |
 | `faculty_status`  | string | null    | Filter by status (active, inactive, suspended, retired, terminated) |
-| `department_id`   | int    | null    | Filter by department ID                                      |
-| `employment_type` | string | null    | Filter by type (permanent, contract, visiting, parttime)     |
-| `is_hod`          | bool   | null    | Filter by HOD status                                         |
-| `search`          | string | null    | Search by employee ID or designation                         |
+| `department_id`   | int    | null    | Filter by department ID                                             |
+| `employment_type` | string | null    | Filter by type (permanent, contract, visiting, parttime)            |
+| `is_hod`          | bool   | null    | Filter by HOD status                                                |
+| `search`          | string | null    | Search by employee ID or designation                                |
 
 ### Departments (`/api/v1/departments`)
 
-| Method | Endpoint              | Description                           | Auth Required     |
-|--------|-----------------------|---------------------------------------|-------------------|
-| GET    | `/`                   | List all departments (paginated)      | Yes               |
-| POST   | `/`                   | Create a new department               | Yes (admin/staff) |
-| GET    | `/{id}`               | Get department by ID                  | Yes               |
-| PUT    | `/{id}`               | Update department details             | Yes (admin/staff) |
-| DELETE | `/{id}`               | Delete department                     | Yes (admin/staff) |
-| GET    | `/{id}/faculty`       | Get faculty in the department         | Yes               |
-| GET    | `/{id}/students`      | Get students in the department        | Yes               |
-| GET    | `/{id}/courses`       | Get courses offered by department     | Yes               |
+| Method | Endpoint         | Description                       | Auth Required     |
+| ------ | ---------------- | --------------------------------- | ----------------- |
+| GET    | `/`              | List all departments (paginated)  | Yes               |
+| POST   | `/`              | Create a new department           | Yes (admin/staff) |
+| GET    | `/{id}`          | Get department by ID              | Yes               |
+| PUT    | `/{id}`          | Update department details         | Yes (admin/staff) |
+| DELETE | `/{id}`          | Delete department                 | Yes (admin/staff) |
+| GET    | `/{id}/faculty`  | Get faculty in the department     | Yes               |
+| GET    | `/{id}/students` | Get students in the department    | Yes               |
+| GET    | `/{id}/courses`  | Get courses offered by department | Yes               |
 
 **GET `/` query parameters:**
 
-| Parameter   | Type   | Default | Description                |
-|-------------|--------|---------|----------------------------|
-| `page`      | int    | 1       | Page number (min 1)        |
-| `page_size` | int    | 10      | Items per page (1-100)     |
-| `is_active` | bool   | null    | Filter by active status    |
-| `search`    | string | null    | Search by name or code     |
+| Parameter   | Type   | Default | Description             |
+| ----------- | ------ | ------- | ----------------------- |
+| `page`      | int    | 1       | Page number (min 1)     |
+| `page_size` | int    | 10      | Items per page (1-100)  |
+| `is_active` | bool   | null    | Filter by active status |
+| `search`    | string | null    | Search by name or code  |
 
 ### Programs (`/api/v1/programs`)
 
-| Method | Endpoint              | Description                           | Auth Required     |
-|--------|-----------------------|---------------------------------------|-------------------|
-| GET    | `/`                   | List all programs (paginated)         | Yes               |
-| POST   | `/`                   | Create a new program                  | Yes (admin/staff) |
-| GET    | `/{id}`               | Get program by ID                     | Yes               |
-| PUT    | `/{id}`               | Update program details                | Yes (admin/staff) |
-| DELETE | `/{id}`               | Delete program                        | Yes (admin/staff) |
-| GET    | `/{id}/courses`       | Get courses in the program            | Yes               |
+| Method | Endpoint        | Description                   | Auth Required     |
+| ------ | --------------- | ----------------------------- | ----------------- |
+| GET    | `/`             | List all programs (paginated) | Yes               |
+| POST   | `/`             | Create a new program          | Yes (admin/staff) |
+| GET    | `/{id}`         | Get program by ID             | Yes               |
+| PUT    | `/{id}`         | Update program details        | Yes (admin/staff) |
+| DELETE | `/{id}`         | Delete program                | Yes (admin/staff) |
+| GET    | `/{id}/courses` | Get courses in the program    | Yes               |
 
 **GET `/` query parameters:**
 
-| Parameter     | Type   | Default | Description                |
-|---------------|--------|---------|----------------------------|
-| `page`        | int    | 1       | Page number (min 1)        |
-| `page_size`   | int    | 10      | Items per page (1-100)     |
-| `department_id` | int  | null    | Filter by department       |
-| `degree_type` | string | null    | Filter by degree type      |
-| `is_active`   | bool   | null    | Filter by active status    |
-| `search`      | string | null    | Search by name or code     |
+| Parameter       | Type   | Default | Description             |
+| --------------- | ------ | ------- | ----------------------- |
+| `page`          | int    | 1       | Page number (min 1)     |
+| `page_size`     | int    | 10      | Items per page (1-100)  |
+| `department_id` | int    | null    | Filter by department    |
+| `degree_type`   | string | null    | Filter by degree type   |
+| `is_active`     | bool   | null    | Filter by active status |
+| `search`        | string | null    | Search by name or code  |
 
 ### Courses (`/api/v1/courses`)
 
-| Method | Endpoint              | Description                           | Auth Required     |
-|--------|-----------------------|---------------------------------------|-------------------|
-| GET    | `/`                   | List all courses (paginated)          | Yes               |
-| POST   | `/`                   | Create a new course                   | Yes (admin/staff) |
-| GET    | `/{id}`               | Get course by ID                      | Yes               |
-| PUT    | `/{id}`               | Update course details                 | Yes (admin/staff) |
-| DELETE | `/{id}`               | Delete course                         | Yes (admin/staff) |
-| GET    | `/{id}/prerequisites` | Get course prerequisites              | Yes               |
+| Method | Endpoint              | Description                  | Auth Required     |
+| ------ | --------------------- | ---------------------------- | ----------------- |
+| GET    | `/`                   | List all courses (paginated) | Yes               |
+| POST   | `/`                   | Create a new course          | Yes (admin/staff) |
+| GET    | `/{id}`               | Get course by ID             | Yes               |
+| PUT    | `/{id}`               | Update course details        | Yes (admin/staff) |
+| DELETE | `/{id}`               | Delete course                | Yes (admin/staff) |
+| GET    | `/{id}/prerequisites` | Get course prerequisites     | Yes               |
 
 **GET `/` query parameters:**
 
-| Parameter     | Type   | Default | Description                |
-|---------------|--------|---------|----------------------------|
-| `page`        | int    | 1       | Page number (min 1)        |
-| `page_size`   | int    | 10      | Items per page (1-100)     |
-| `department_id` | int  | null    | Filter by department       |
-| `course_type` | string | null    | Filter by course type      |
-| `level`       | string | null    | Filter by level            |
-| `is_active`   | bool   | null    | Filter by active status    |
-| `search`      | string | null    | Search by name or code     |
+| Parameter       | Type   | Default | Description             |
+| --------------- | ------ | ------- | ----------------------- |
+| `page`          | int    | 1       | Page number (min 1)     |
+| `page_size`     | int    | 10      | Items per page (1-100)  |
+| `department_id` | int    | null    | Filter by department    |
+| `course_type`   | string | null    | Filter by course type   |
+| `level`         | string | null    | Filter by level         |
+| `is_active`     | bool   | null    | Filter by active status |
+| `search`        | string | null    | Search by name or code  |
 
 ### Course Offerings (`/api/v1/course-offerings`)
 
-| Method | Endpoint              | Description                           | Auth Required     |
-|--------|-----------------------|---------------------------------------|-------------------|
-| GET    | `/`                   | List all course offerings (paginated) | Yes               |
-| POST   | `/`                   | Create a new course offering          | Yes (admin/staff) |
-| GET    | `/{id}`               | Get offering by ID                    | Yes               |
-| PUT    | `/{id}`               | Update offering details               | Yes (admin/staff) |
-| DELETE | `/{id}`               | Delete offering                       | Yes (admin/staff) |
+| Method | Endpoint | Description                           | Auth Required     |
+| ------ | -------- | ------------------------------------- | ----------------- |
+| GET    | `/`      | List all course offerings (paginated) | Yes               |
+| POST   | `/`      | Create a new course offering          | Yes (admin/staff) |
+| GET    | `/{id}`  | Get offering by ID                    | Yes               |
+| PUT    | `/{id}`  | Update offering details               | Yes (admin/staff) |
+| DELETE | `/{id}`  | Delete offering                       | Yes (admin/staff) |
 
 **GET `/` query parameters:**
 
-| Parameter        | Type   | Default | Description                |
-|------------------|--------|---------|----------------------------|
-| `page`           | int    | 1       | Page number (min 1)        |
-| `page_size`      | int    | 10      | Items per page (1-100)     |
-| `program_id`     | int    | null    | Filter by program          |
-| `course_id`      | int    | null    | Filter by course           |
-| `semester`       | int    | null    | Filter by semester         |
-| `acedemic_year`  | string | null    | Filter by academic year    |
-| `offering_status`| string | null    | Filter by status           |
+| Parameter         | Type   | Default | Description             |
+| ----------------- | ------ | ------- | ----------------------- |
+| `page`            | int    | 1       | Page number (min 1)     |
+| `page_size`       | int    | 10      | Items per page (1-100)  |
+| `program_id`      | int    | null    | Filter by program       |
+| `course_id`       | int    | null    | Filter by course        |
+| `semester`        | int    | null    | Filter by semester      |
+| `acedemic_year`   | string | null    | Filter by academic year |
+| `offering_status` | string | null    | Filter by status        |
 
 ### Enrollments (`/api/v1/enrollments`)
 
 | Method | Endpoint              | Description                           | Auth Required     |
-|--------|-----------------------|---------------------------------------|-------------------|
+| ------ | --------------------- | ------------------------------------- | ----------------- |
 | GET    | `/verify-eligibility` | Check student eligibility for program | Yes               |
 | GET    | `/`                   | List all enrollments (paginated)      | Yes               |
 | POST   | `/`                   | Create a new enrollment               | Yes (admin/staff) |
@@ -293,260 +318,260 @@ Accepts a multipart file upload (JPEG, PNG, or WebP, max 5 MB). Updates the user
 
 **GET `/` query parameters:**
 
-| Parameter           | Type   | Default | Description                |
-|---------------------|--------|---------|----------------------------|
-| `page`              | int    | 1       | Page number (min 1)        |
-| `page_size`         | int    | 10      | Items per page (1-100)     |
-| `student_id`        | int    | null    | Filter by student          |
-| `program_id`        | int    | null    | Filter by program          |
-| `enrollment_status` | string | null    | Filter by status           |
+| Parameter           | Type   | Default | Description            |
+| ------------------- | ------ | ------- | ---------------------- |
+| `page`              | int    | 1       | Page number (min 1)    |
+| `page_size`         | int    | 10      | Items per page (1-100) |
+| `student_id`        | int    | null    | Filter by student      |
+| `program_id`        | int    | null    | Filter by program      |
+| `enrollment_status` | string | null    | Filter by status       |
 
 ### Attendance (`/api/v1/attendance`)
 
-| Method | Endpoint              | Description                             | Auth Required             |
-|--------|-----------------------|-----------------------------------------|---------------------------|
-| GET    | `/summary`            | Get attendance summary                  | Yes                       |
-| GET    | `/reports`            | Get attendance reports (aggregated)     | Yes                       |
-| GET    | `/defaulters`         | Get students below attendance threshold | Yes                       |
-| GET    | `/`                   | List attendance records (paginated)     | Yes                       |
-| POST   | `/`                   | Mark attendance                         | Yes (admin/staff/faculty) |
-| POST   | `/bulk`               | Bulk mark attendance                    | Yes (admin/staff/faculty) |
-| PUT    | `/{id}`               | Update attendance record                | Yes (admin/staff/faculty) |
+| Method | Endpoint      | Description                             | Auth Required             |
+| ------ | ------------- | --------------------------------------- | ------------------------- |
+| GET    | `/summary`    | Get attendance summary                  | Yes                       |
+| GET    | `/reports`    | Get attendance reports (aggregated)     | Yes                       |
+| GET    | `/defaulters` | Get students below attendance threshold | Yes                       |
+| GET    | `/`           | List attendance records (paginated)     | Yes                       |
+| POST   | `/`           | Mark attendance                         | Yes (admin/staff/faculty) |
+| POST   | `/bulk`       | Bulk mark attendance                    | Yes (admin/staff/faculty) |
+| PUT    | `/{id}`       | Update attendance record                | Yes (admin/staff/faculty) |
 
 **GET `/` query parameters:**
 
-| Parameter           | Type     | Default | Description                |
-|---------------------|----------|---------|----------------------------|
-| `page`              | int      | 1       | Page number (min 1)        |
-| `page_size`         | int      | 10      | Items per page (1-100)     |
-| `enrollment_id`     | int      | null    | Filter by enrollment       |
-| `student_id`        | int      | null    | Filter by student          |
-| `attendance_status` | string   | null    | Filter by status           |
-| `date_from`         | datetime | null    | Start date filter          |
-| `date_to`           | datetime | null    | End date filter            |
+| Parameter           | Type     | Default | Description            |
+| ------------------- | -------- | ------- | ---------------------- |
+| `page`              | int      | 1       | Page number (min 1)    |
+| `page_size`         | int      | 10      | Items per page (1-100) |
+| `enrollment_id`     | int      | null    | Filter by enrollment   |
+| `student_id`        | int      | null    | Filter by student      |
+| `attendance_status` | string   | null    | Filter by status       |
+| `date_from`         | datetime | null    | Start date filter      |
+| `date_to`           | datetime | null    | End date filter        |
 
 **GET `/defaulters` query parameters:**
 
-| Parameter   | Type  | Default | Description                    |
-|-------------|-------|---------|--------------------------------|
-| `threshold` | float | 75.0    | Attendance percentage threshold|
+| Parameter   | Type  | Default | Description                     |
+| ----------- | ----- | ------- | ------------------------------- |
+| `threshold` | float | 75.0    | Attendance percentage threshold |
 
 ### Assessments (`/api/v1/assessments`)
 
-| Method | Endpoint              | Description                           | Auth Required             |
-|--------|-----------------------|---------------------------------------|---------------------------|
-| GET    | `/`                   | List all assessments (paginated)      | Yes                       |
-| POST   | `/`                   | Create a new assessment               | Yes (admin/staff/faculty) |
-| GET    | `/{id}`               | Get assessment by ID                  | Yes                       |
-| PUT    | `/{id}`               | Update assessment                     | Yes (admin/staff/faculty) |
-| DELETE | `/{id}`               | Delete assessment                     | Yes (admin/staff)         |
+| Method | Endpoint | Description                      | Auth Required             |
+| ------ | -------- | -------------------------------- | ------------------------- |
+| GET    | `/`      | List all assessments (paginated) | Yes                       |
+| POST   | `/`      | Create a new assessment          | Yes (admin/staff/faculty) |
+| GET    | `/{id}`  | Get assessment by ID             | Yes                       |
+| PUT    | `/{id}`  | Update assessment                | Yes (admin/staff/faculty) |
+| DELETE | `/{id}`  | Delete assessment                | Yes (admin/staff)         |
 
 **GET `/` query parameters:**
 
-| Parameter            | Type   | Default | Description                  |
-|----------------------|--------|---------|------------------------------|
-| `page`               | int    | 1       | Page number (min 1)          |
-| `page_size`          | int    | 10      | Items per page (1-100)       |
-| `course_offering_id` | int    | null    | Filter by course offering    |
-| `assessment_type`    | string | null    | Filter by assessment type    |
+| Parameter            | Type   | Default | Description               |
+| -------------------- | ------ | ------- | ------------------------- |
+| `page`               | int    | 1       | Page number (min 1)       |
+| `page_size`          | int    | 10      | Items per page (1-100)    |
+| `course_offering_id` | int    | null    | Filter by course offering |
+| `assessment_type`    | string | null    | Filter by assessment type |
 
 ### Grades (`/api/v1/grades`)
 
-| Method | Endpoint              | Description                           | Auth Required             |
-|--------|-----------------------|---------------------------------------|---------------------------|
-| GET    | `/calculate-sgpa`     | Calculate SGPA for a student/semester | Yes                       |
-| GET    | `/calculate-cgpa`     | Calculate CGPA for a student          | Yes                       |
-| GET    | `/`                   | List all grades (paginated)           | Yes                       |
-| POST   | `/`                   | Submit a grade                        | Yes (admin/staff/faculty) |
-| PUT    | `/{id}`               | Update a grade                        | Yes (admin/staff/faculty) |
-| POST   | `/bulk`               | Bulk submit grades                    | Yes (admin/staff/faculty) |
-| POST   | `/publish`            | Publish semester results              | Yes (admin/staff)         |
+| Method | Endpoint          | Description                           | Auth Required             |
+| ------ | ----------------- | ------------------------------------- | ------------------------- |
+| GET    | `/calculate-sgpa` | Calculate SGPA for a student/semester | Yes                       |
+| GET    | `/calculate-cgpa` | Calculate CGPA for a student          | Yes                       |
+| GET    | `/`               | List all grades (paginated)           | Yes                       |
+| POST   | `/`               | Submit a grade                        | Yes (admin/staff/faculty) |
+| PUT    | `/{id}`           | Update a grade                        | Yes (admin/staff/faculty) |
+| POST   | `/bulk`           | Bulk submit grades                    | Yes (admin/staff/faculty) |
+| POST   | `/publish`        | Publish semester results              | Yes (admin/staff)         |
 
 **GET `/` query parameters:**
 
-| Parameter       | Type | Default | Description              |
-|-----------------|------|---------|--------------------------|
-| `page`          | int  | 1       | Page number (min 1)      |
-| `page_size`     | int  | 10      | Items per page (1-100)   |
-| `enrollment_id` | int  | null    | Filter by enrollment     |
-| `course_id`     | int  | null    | Filter by course         |
-| `assessment_id` | int  | null    | Filter by assessment     |
-| `student_id`    | int  | null    | Filter by student        |
+| Parameter       | Type | Default | Description            |
+| --------------- | ---- | ------- | ---------------------- |
+| `page`          | int  | 1       | Page number (min 1)    |
+| `page_size`     | int  | 10      | Items per page (1-100) |
+| `enrollment_id` | int  | null    | Filter by enrollment   |
+| `course_id`     | int  | null    | Filter by course       |
+| `assessment_id` | int  | null    | Filter by assessment   |
+| `student_id`    | int  | null    | Filter by student      |
 
 **GET `/calculate-sgpa` query parameters:**
 
-| Parameter    | Type | Description          |
-|--------------|------|----------------------|
-| `student_id` | int  | Student ID (required)|
-| `semester`   | int  | Semester (required)  |
+| Parameter    | Type | Description           |
+| ------------ | ---- | --------------------- |
+| `student_id` | int  | Student ID (required) |
+| `semester`   | int  | Semester (required)   |
 
 **GET `/calculate-cgpa` query parameters:**
 
-| Parameter    | Type | Description          |
-|--------------|------|----------------------|
-| `student_id` | int  | Student ID (required)|
+| Parameter    | Type | Description           |
+| ------------ | ---- | --------------------- |
+| `student_id` | int  | Student ID (required) |
 
 ### Fee Structures (`/api/v1/fee-structures`)
 
-| Method | Endpoint              | Description                           | Auth Required     |
-|--------|-----------------------|---------------------------------------|-------------------|
-| GET    | `/`                   | List fee structures (paginated)       | Yes               |
-| POST   | `/`                   | Create a new fee structure            | Yes (admin/staff) |
-| GET    | `/{id}`               | Get fee structure by ID               | Yes               |
-| PUT    | `/{id}`               | Update fee structure                  | Yes (admin/staff) |
+| Method | Endpoint | Description                     | Auth Required     |
+| ------ | -------- | ------------------------------- | ----------------- |
+| GET    | `/`      | List fee structures (paginated) | Yes               |
+| POST   | `/`      | Create a new fee structure      | Yes (admin/staff) |
+| GET    | `/{id}`  | Get fee structure by ID         | Yes               |
+| PUT    | `/{id}`  | Update fee structure            | Yes (admin/staff) |
 
 **GET `/` query parameters:**
 
-| Parameter       | Type   | Default | Description                |
-|-----------------|--------|---------|----------------------------|
-| `page`          | int    | 1       | Page number (min 1)        |
-| `page_size`     | int    | 10      | Items per page (1-100)     |
-| `program_id`    | int    | null    | Filter by program          |
-| `student_id`    | int    | null    | Filter by student          |
-| `acedamic_year` | string | null    | Filter by academic year    |
-| `semester`      | int    | null    | Filter by semester         |
+| Parameter       | Type   | Default | Description             |
+| --------------- | ------ | ------- | ----------------------- |
+| `page`          | int    | 1       | Page number (min 1)     |
+| `page_size`     | int    | 10      | Items per page (1-100)  |
+| `program_id`    | int    | null    | Filter by program       |
+| `student_id`    | int    | null    | Filter by student       |
+| `acedamic_year` | string | null    | Filter by academic year |
+| `semester`      | int    | null    | Filter by semester      |
 
 ### Fee Payments (`/api/v1/fee-payments`)
 
-| Method | Endpoint              | Description                             | Auth Required     |
-|--------|-----------------------|-----------------------------------------|-------------------|
-| GET    | `/pending`            | Get pending (unpaid/partial) payments   | Yes               |
-| GET    | `/defaulters`         | Get students with overdue fees          | Yes (admin/staff) |
-| GET    | `/`                   | List all payments (paginated)           | Yes               |
-| POST   | `/`                   | Record a fee payment                    | Yes (admin/staff) |
-| POST   | `/refund`             | Process a payment refund                | Yes (admin/staff) |
-| GET    | `/{id}`               | Get payment details                     | Yes               |
-| GET    | `/{id}/receipt`       | Generate payment receipt                | Yes               |
+| Method | Endpoint        | Description                           | Auth Required     |
+| ------ | --------------- | ------------------------------------- | ----------------- |
+| GET    | `/pending`      | Get pending (unpaid/partial) payments | Yes               |
+| GET    | `/defaulters`   | Get students with overdue fees        | Yes (admin/staff) |
+| GET    | `/`             | List all payments (paginated)         | Yes               |
+| POST   | `/`             | Record a fee payment                  | Yes (admin/staff) |
+| POST   | `/refund`       | Process a payment refund              | Yes (admin/staff) |
+| GET    | `/{id}`         | Get payment details                   | Yes               |
+| GET    | `/{id}/receipt` | Generate payment receipt              | Yes               |
 
 **GET `/` query parameters:**
 
-| Parameter          | Type   | Default | Description                |
-|--------------------|--------|---------|----------------------------|
-| `page`             | int    | 1       | Page number (min 1)        |
-| `page_size`        | int    | 10      | Items per page (1-100)     |
-| `student_id`       | int    | null    | Filter by student          |
-| `fee_structure_id` | int    | null    | Filter by fee structure    |
-| `payment_status`   | string | null    | Filter by status           |
+| Parameter          | Type   | Default | Description             |
+| ------------------ | ------ | ------- | ----------------------- |
+| `page`             | int    | 1       | Page number (min 1)     |
+| `page_size`        | int    | 10      | Items per page (1-100)  |
+| `student_id`       | int    | null    | Filter by student       |
+| `fee_structure_id` | int    | null    | Filter by fee structure |
+| `payment_status`   | string | null    | Filter by status        |
 
 ### Library (`/api/v1/library`)
 
 **Books:**
 
-| Method | Endpoint              | Description                        | Auth Required     |
-|--------|-----------------------|------------------------------------|-------------------|
-| GET    | `/books/search`       | Search books by title, author, ISBN | Yes              |
-| GET    | `/books`              | List all books (paginated)         | Yes               |
-| POST   | `/books`              | Add a new book                     | Yes (admin/staff) |
-| GET    | `/books/{id}`         | Get book details                   | Yes               |
-| PUT    | `/books/{id}`         | Update book                        | Yes (admin/staff) |
-| DELETE | `/books/{id}`         | Delete book                        | Yes (admin/staff) |
+| Method | Endpoint        | Description                         | Auth Required     |
+| ------ | --------------- | ----------------------------------- | ----------------- |
+| GET    | `/books/search` | Search books by title, author, ISBN | Yes               |
+| GET    | `/books`        | List all books (paginated)          | Yes               |
+| POST   | `/books`        | Add a new book                      | Yes (admin/staff) |
+| GET    | `/books/{id}`   | Get book details                    | Yes               |
+| PUT    | `/books/{id}`   | Update book                         | Yes (admin/staff) |
+| DELETE | `/books/{id}`   | Delete book                         | Yes (admin/staff) |
 
 **GET `/books` query parameters:**
 
-| Parameter       | Type   | Default | Description                |
-|-----------------|--------|---------|----------------------------|
-| `page`          | int    | 1       | Page number (min 1)        |
-| `page_size`     | int    | 10      | Items per page (1-100)     |
-| `category`      | string | null    | Filter by category         |
-| `department_id` | int    | null    | Filter by department       |
-| `is_referenced` | bool   | null    | Filter reference books     |
+| Parameter       | Type   | Default | Description            |
+| --------------- | ------ | ------- | ---------------------- |
+| `page`          | int    | 1       | Page number (min 1)    |
+| `page_size`     | int    | 10      | Items per page (1-100) |
+| `category`      | string | null    | Filter by category     |
+| `department_id` | int    | null    | Filter by department   |
+| `is_referenced` | bool   | null    | Filter reference books |
 
 **Circulation:**
 
-| Method | Endpoint              | Description                        | Auth Required     |
-|--------|-----------------------|------------------------------------|-------------------|
-| GET    | `/issued`             | Get currently issued books         | Yes               |
-| GET    | `/overdue`            | Get overdue books with days count  | Yes               |
-| POST   | `/issue`              | Issue a book to a user             | Yes (admin/staff) |
-| PUT    | `/return`             | Return an issued book              | Yes               |
-| POST   | `/renew`              | Renew (extend due date)            | Yes               |
-| POST   | `/pay-fine`           | Pay fine for overdue book          | Yes               |
+| Method | Endpoint    | Description                       | Auth Required     |
+| ------ | ----------- | --------------------------------- | ----------------- |
+| GET    | `/issued`   | Get currently issued books        | Yes               |
+| GET    | `/overdue`  | Get overdue books with days count | Yes               |
+| POST   | `/issue`    | Issue a book to a user            | Yes (admin/staff) |
+| PUT    | `/return`   | Return an issued book             | Yes               |
+| POST   | `/renew`    | Renew (extend due date)           | Yes               |
+| POST   | `/pay-fine` | Pay fine for overdue book         | Yes               |
 
 ### Hostels (`/api/v1/hostels`)
 
-| Method | Endpoint              | Description                           | Auth Required     |
-|--------|-----------------------|---------------------------------------|-------------------|
-| GET    | `/`                   | List all hostels (paginated)          | Yes               |
-| POST   | `/`                   | Create a new hostel                   | Yes (admin/staff) |
-| GET    | `/{id}`               | Get hostel by ID                      | Yes               |
-| PUT    | `/{id}`               | Update hostel details                 | Yes (admin/staff) |
-| GET    | `/{id}/rooms`         | Get all rooms in a hostel             | Yes               |
+| Method | Endpoint      | Description                  | Auth Required     |
+| ------ | ------------- | ---------------------------- | ----------------- |
+| GET    | `/`           | List all hostels (paginated) | Yes               |
+| POST   | `/`           | Create a new hostel          | Yes (admin/staff) |
+| GET    | `/{id}`       | Get hostel by ID             | Yes               |
+| PUT    | `/{id}`       | Update hostel details        | Yes (admin/staff) |
+| GET    | `/{id}/rooms` | Get all rooms in a hostel    | Yes               |
 
 **GET `/` query parameters:**
 
-| Parameter     | Type   | Default | Description                |
-|---------------|--------|---------|----------------------------|
-| `page`        | int    | 1       | Page number (min 1)        |
-| `page_size`   | int    | 10      | Items per page (1-100)     |
-| `hostel_type` | string | null    | Filter by hostel type      |
-| `is_active`   | bool   | null    | Filter by active status    |
+| Parameter     | Type   | Default | Description             |
+| ------------- | ------ | ------- | ----------------------- |
+| `page`        | int    | 1       | Page number (min 1)     |
+| `page_size`   | int    | 10      | Items per page (1-100)  |
+| `hostel_type` | string | null    | Filter by hostel type   |
+| `is_active`   | bool   | null    | Filter by active status |
 
 ### Hostel Rooms (`/api/v1/hostel-rooms`)
 
-| Method | Endpoint              | Description                           | Auth Required     |
-|--------|-----------------------|---------------------------------------|-------------------|
-| GET    | `/available`          | Get available rooms                   | Yes               |
-| GET    | `/`                   | List all rooms (paginated)            | Yes               |
-| POST   | `/`                   | Add a new room to a hostel            | Yes (admin/staff) |
-| GET    | `/{id}`               | Get room by ID                        | Yes               |
-| PUT    | `/{id}`               | Update room details                   | Yes (admin/staff) |
+| Method | Endpoint     | Description                | Auth Required     |
+| ------ | ------------ | -------------------------- | ----------------- |
+| GET    | `/available` | Get available rooms        | Yes               |
+| GET    | `/`          | List all rooms (paginated) | Yes               |
+| POST   | `/`          | Add a new room to a hostel | Yes (admin/staff) |
+| GET    | `/{id}`      | Get room by ID             | Yes               |
+| PUT    | `/{id}`      | Update room details        | Yes (admin/staff) |
 
 **GET `/` query parameters:**
 
-| Parameter     | Type   | Default | Description                |
-|---------------|--------|---------|----------------------------|
-| `page`        | int    | 1       | Page number (min 1)        |
-| `page_size`   | int    | 10      | Items per page (1-100)     |
-| `hostel_id`   | int    | null    | Filter by hostel           |
-| `room_type`   | string | null    | Filter by room type        |
-| `room_status` | string | null    | Filter by status           |
-| `is_active`   | bool   | null    | Filter by active status    |
+| Parameter     | Type   | Default | Description             |
+| ------------- | ------ | ------- | ----------------------- |
+| `page`        | int    | 1       | Page number (min 1)     |
+| `page_size`   | int    | 10      | Items per page (1-100)  |
+| `hostel_id`   | int    | null    | Filter by hostel        |
+| `room_type`   | string | null    | Filter by room type     |
+| `room_status` | string | null    | Filter by status        |
+| `is_active`   | bool   | null    | Filter by active status |
 
 ### Hostel Allocations (`/api/v1/hostel-allocations`)
 
-| Method | Endpoint                  | Description                             | Auth Required     |
-|--------|---------------------------|-----------------------------------------|-------------------|
-| GET    | `/history/{student_id}`   | Get student's full allocation history   | Yes               |
-| GET    | `/`                       | List all allocations (paginated)        | Yes               |
-| POST   | `/`                       | Allocate a room to a student            | Yes (admin/staff) |
-| PUT    | `/{id}`                   | Update/transfer allocation              | Yes (admin/staff) |
-| DELETE | `/{id}`                   | Vacate room (keeps history record)      | Yes (admin/staff) |
+| Method | Endpoint                | Description                           | Auth Required     |
+| ------ | ----------------------- | ------------------------------------- | ----------------- |
+| GET    | `/history/{student_id}` | Get student's full allocation history | Yes               |
+| GET    | `/`                     | List all allocations (paginated)      | Yes               |
+| POST   | `/`                     | Allocate a room to a student          | Yes (admin/staff) |
+| PUT    | `/{id}`                 | Update/transfer allocation            | Yes (admin/staff) |
+| DELETE | `/{id}`                 | Vacate room (keeps history record)    | Yes (admin/staff) |
 
 **GET `/` query parameters:**
 
-| Parameter           | Type   | Default | Description                |
-|---------------------|--------|---------|----------------------------|
-| `page`              | int    | 1       | Page number (min 1)        |
-| `page_size`         | int    | 10      | Items per page (1-100)     |
-| `student_id`        | int    | null    | Filter by student          |
-| `hostel_id`         | int    | null    | Filter by hostel           |
-| `room_id`           | int    | null    | Filter by room             |
-| `allocation_status` | string | null    | Filter by status           |
-| `acedamic_year`     | string | null    | Filter by academic year    |
+| Parameter           | Type   | Default | Description             |
+| ------------------- | ------ | ------- | ----------------------- |
+| `page`              | int    | 1       | Page number (min 1)     |
+| `page_size`         | int    | 10      | Items per page (1-100)  |
+| `student_id`        | int    | null    | Filter by student       |
+| `hostel_id`         | int    | null    | Filter by hostel        |
+| `room_id`           | int    | null    | Filter by room          |
+| `allocation_status` | string | null    | Filter by status        |
+| `acedamic_year`     | string | null    | Filter by academic year |
 
 **Allocation history:** Each allocation (active, vacated, transferred) is preserved as a separate record. The `DELETE /{id}` endpoint marks the allocation as `VACATED` rather than deleting it. Room transfers create a `TRANSFERRED` record for the old allocation and a new `ACTIVE` record for the new room. Use `GET /history/{student_id}` to retrieve a student's complete hostel allocation timeline.
 
 ### Exam Schedules (`/api/v1/exams`)
 
-| Method | Endpoint              | Description                           | Auth Required     |
-|--------|-----------------------|---------------------------------------|-------------------|
-| GET    | `/`                   | List exam schedules (paginated)       | Yes               |
-| POST   | `/`                   | Create a new exam schedule            | Yes (admin/staff) |
-| GET    | `/{id}`               | Get exam schedule by ID               | Yes               |
-| PUT    | `/{id}`               | Update exam schedule                  | Yes (admin/staff) |
-| DELETE | `/{id}`               | Delete exam schedule                  | Yes (admin/staff) |
+| Method | Endpoint | Description                     | Auth Required     |
+| ------ | -------- | ------------------------------- | ----------------- |
+| GET    | `/`      | List exam schedules (paginated) | Yes               |
+| POST   | `/`      | Create a new exam schedule      | Yes (admin/staff) |
+| GET    | `/{id}`  | Get exam schedule by ID         | Yes               |
+| PUT    | `/{id}`  | Update exam schedule            | Yes (admin/staff) |
+| DELETE | `/{id}`  | Delete exam schedule            | Yes (admin/staff) |
 
 **GET `/` query parameters:**
 
-| Parameter       | Type   | Default | Description                |
-|-----------------|--------|---------|----------------------------|
-| `page`          | int    | 1       | Page number (min 1)        |
-| `page_size`     | int    | 10      | Items per page (1-100)     |
-| `course_id`     | int    | null    | Filter by course           |
-| `academic_year` | string | null    | Filter by academic year    |
-| `semester`      | int    | null    | Filter by semester         |
-| `status`        | string | null    | Filter by status           |
-| `exam_type`     | string | null    | Filter by exam type        |
+| Parameter       | Type   | Default | Description             |
+| --------------- | ------ | ------- | ----------------------- |
+| `page`          | int    | 1       | Page number (min 1)     |
+| `page_size`     | int    | 10      | Items per page (1-100)  |
+| `course_id`     | int    | null    | Filter by course        |
+| `academic_year` | string | null    | Filter by academic year |
+| `semester`      | int    | null    | Filter by semester      |
+| `status`        | string | null    | Filter by status        |
+| `exam_type`     | string | null    | Filter by exam type     |
 
 **Exam status values:** `draft`, `scheduled`, `ongoing`, `completed`, `cancelled`
 
@@ -554,54 +579,54 @@ Accepts a multipart file upload (JPEG, PNG, or WebP, max 5 MB). Updates the user
 
 ### Exam Timetable (`/api/v1/exam-timetable`)
 
-| Method | Endpoint              | Description                              | Auth Required     |
-|--------|-----------------------|------------------------------------------|-------------------|
-| GET    | `/export`             | Export timetable data (with filters)     | Yes               |
-| GET    | `/student/{id}`       | Get a student's exam schedule            | Yes               |
-| GET    | `/`                   | List timetable entries (paginated)       | Yes               |
-| POST   | `/`                   | Create a new timetable entry             | Yes (admin/staff) |
-| PUT    | `/{id}`               | Update a timetable entry                 | Yes (admin/staff) |
+| Method | Endpoint        | Description                          | Auth Required     |
+| ------ | --------------- | ------------------------------------ | ----------------- |
+| GET    | `/export`       | Export timetable data (with filters) | Yes               |
+| GET    | `/student/{id}` | Get a student's exam schedule        | Yes               |
+| GET    | `/`             | List timetable entries (paginated)   | Yes               |
+| POST   | `/`             | Create a new timetable entry         | Yes (admin/staff) |
+| PUT    | `/{id}`         | Update a timetable entry             | Yes (admin/staff) |
 
 **GET `/` query parameters:**
 
-| Parameter           | Type | Default | Description                |
-|---------------------|------|---------|----------------------------|
-| `page`              | int  | 1       | Page number (min 1)        |
-| `page_size`         | int  | 10      | Items per page (1-100)     |
-| `exam_schedule_id`  | int  | null    | Filter by exam schedule    |
-| `course_offering_id`| int  | null    | Filter by course offering  |
+| Parameter            | Type | Default | Description               |
+| -------------------- | ---- | ------- | ------------------------- |
+| `page`               | int  | 1       | Page number (min 1)       |
+| `page_size`          | int  | 10      | Items per page (1-100)    |
+| `exam_schedule_id`   | int  | null    | Filter by exam schedule   |
+| `course_offering_id` | int  | null    | Filter by course offering |
 
 **GET `/export` query parameters:**
 
-| Parameter          | Type   | Default | Description                |
-|--------------------|--------|---------|----------------------------|
-| `exam_schedule_id` | int    | null    | Filter by exam schedule    |
-| `academic_year`    | string | null    | Filter by academic year    |
-| `semester`         | int    | null    | Filter by semester         |
+| Parameter          | Type   | Default | Description             |
+| ------------------ | ------ | ------- | ----------------------- |
+| `exam_schedule_id` | int    | null    | Filter by exam schedule |
+| `academic_year`    | string | null    | Filter by academic year |
+| `semester`         | int    | null    | Filter by semester      |
 
 **Student exam schedule:** The `GET /student/{id}` endpoint returns all exam timetable entries for a student based on the programs they are enrolled in. Each entry includes the exam name, type, date, time, venue, duration, and max marks.
 
 ### Timetable (`/api/v1/timetable`)
 
-| Method | Endpoint              | Description                                | Auth Required     |
-|--------|-----------------------|--------------------------------------------|-------------------|
-| POST   | `/generate`           | Generate class schedules (bulk)            | Yes (admin/staff) |
-| GET    | `/student/{id}`       | Get a student's weekly timetable           | Yes               |
-| GET    | `/faculty/{id}`       | Get a faculty member's weekly timetable    | Yes               |
-| GET    | `/room/{number}`      | Get a room's weekly timetable              | Yes               |
-| GET    | `/`                   | List all class schedules (paginated)       | Yes               |
-| PUT    | `/{id}`               | Update a class schedule                    | Yes (admin/staff) |
+| Method | Endpoint         | Description                             | Auth Required     |
+| ------ | ---------------- | --------------------------------------- | ----------------- |
+| POST   | `/generate`      | Generate class schedules (bulk)         | Yes (admin/staff) |
+| GET    | `/student/{id}`  | Get a student's weekly timetable        | Yes               |
+| GET    | `/faculty/{id}`  | Get a faculty member's weekly timetable | Yes               |
+| GET    | `/room/{number}` | Get a room's weekly timetable           | Yes               |
+| GET    | `/`              | List all class schedules (paginated)    | Yes               |
+| PUT    | `/{id}`          | Update a class schedule                 | Yes (admin/staff) |
 
 **GET `/` query parameters:**
 
-| Parameter            | Type   | Default | Description                |
-|----------------------|--------|---------|----------------------------|
-| `page`               | int    | 1       | Page number (min 1)        |
-| `page_size`          | int    | 10      | Items per page (1-100)     |
-| `course_offering_id` | int    | null    | Filter by course offering  |
-| `slot_id`            | int    | null    | Filter by timetable slot   |
-| `room_no`            | string | null    | Filter by room number      |
-| `is_active`          | bool   | null    | Filter by active status    |
+| Parameter            | Type   | Default | Description               |
+| -------------------- | ------ | ------- | ------------------------- |
+| `page`               | int    | 1       | Page number (min 1)       |
+| `page_size`          | int    | 10      | Items per page (1-100)    |
+| `course_offering_id` | int    | null    | Filter by course offering |
+| `slot_id`            | int    | null    | Filter by timetable slot  |
+| `room_no`            | string | null    | Filter by room number     |
+| `is_active`          | bool   | null    | Filter by active status   |
 
 **POST `/generate`:** Accepts a list of `{course_offering_id, slot_id, room_no}` items. Validates that each course offering and slot exist, checks for room-slot conflicts, and bulk creates class schedules.
 
@@ -609,106 +634,106 @@ Accepts a multipart file upload (JPEG, PNG, or WebP, max 5 MB). Updates the user
 
 ### Notifications (`/api/v1/notifications`)
 
-| Method | Endpoint              | Description                           | Auth Required     |
-|--------|-----------------------|---------------------------------------|-------------------|
-| GET    | `/unread`             | Get unread notification count         | Yes               |
-| POST   | `/`                   | Send a new notification               | Yes (admin/staff) |
-| GET    | `/`                   | List notifications for current user   | Yes               |
-| GET    | `/{id}`               | Get notification details              | Yes               |
-| PUT    | `/{id}/read`          | Mark a notification as read           | Yes               |
-| DELETE | `/{id}`               | Delete a notification                 | Yes (admin/staff) |
+| Method | Endpoint     | Description                         | Auth Required     |
+| ------ | ------------ | ----------------------------------- | ----------------- |
+| GET    | `/unread`    | Get unread notification count       | Yes               |
+| POST   | `/`          | Send a new notification             | Yes (admin/staff) |
+| GET    | `/`          | List notifications for current user | Yes               |
+| GET    | `/{id}`      | Get notification details            | Yes               |
+| PUT    | `/{id}/read` | Mark a notification as read         | Yes               |
+| DELETE | `/{id}`      | Delete a notification               | Yes (admin/staff) |
 
 **GET `/` query parameters:**
 
-| Parameter | Type | Default | Description            |
-|-----------|------|---------|------------------------|
-| `page`    | int  | 1       | Page number (min 1)    |
-| `page_size` | int | 10    | Items per page (1-100) |
+| Parameter   | Type | Default | Description            |
+| ----------- | ---- | ------- | ---------------------- |
+| `page`      | int  | 1       | Page number (min 1)    |
+| `page_size` | int  | 10      | Items per page (1-100) |
 
 **POST `/`:** Creates a notification and fans out `UserNotification` records based on `target_audience`. Supported audiences: `all`, `students`, `faculty`, `staff`, `specific` (requires `target_id` list).
 
 ### Documents (`/api/v1/documents`)
 
-| Method | Endpoint              | Description                           | Auth Required     |
-|--------|-----------------------|---------------------------------------|-------------------|
-| GET    | `/search`             | Search documents by title/description | Yes               |
-| POST   | `/upload`             | Upload a new document                 | Yes               |
-| GET    | `/`                   | List all documents (paginated)        | Yes               |
-| GET    | `/{id}`               | Get document metadata                 | Yes               |
-| GET    | `/{id}/download`      | Download document file                | Yes               |
-| DELETE | `/{id}`               | Delete a document                     | Yes (admin/staff) |
+| Method | Endpoint         | Description                           | Auth Required     |
+| ------ | ---------------- | ------------------------------------- | ----------------- |
+| GET    | `/search`        | Search documents by title/description | Yes               |
+| POST   | `/upload`        | Upload a new document                 | Yes               |
+| GET    | `/`              | List all documents (paginated)        | Yes               |
+| GET    | `/{id}`          | Get document metadata                 | Yes               |
+| GET    | `/{id}/download` | Download document file                | Yes               |
+| DELETE | `/{id}`          | Delete a document                     | Yes (admin/staff) |
 
 **GET `/` query parameters:**
 
-| Parameter       | Type   | Default | Description                |
-|-----------------|--------|---------|----------------------------|
-| `page`          | int    | 1       | Page number (min 1)        |
-| `page_size`     | int    | 10      | Items per page (1-100)     |
-| `user_id`       | int    | null    | Filter by uploader         |
-| `document_type` | string | null    | Filter by document type    |
+| Parameter       | Type   | Default | Description             |
+| --------------- | ------ | ------- | ----------------------- |
+| `page`          | int    | 1       | Page number (min 1)     |
+| `page_size`     | int    | 10      | Items per page (1-100)  |
+| `user_id`       | int    | null    | Filter by uploader      |
+| `document_type` | string | null    | Filter by document type |
 
 **GET `/search` query parameters:**
 
-| Parameter | Type   | Default | Description                          |
-|-----------|--------|---------|--------------------------------------|
+| Parameter | Type   | Default | Description                                         |
+| --------- | ------ | ------- | --------------------------------------------------- |
 | `q`       | string | —       | Search term (matches title, description, file name) |
-| `limit`   | int    | 20      | Max results (1-100)                  |
+| `limit`   | int    | 20      | Max results (1-100)                                 |
 
 **POST `/upload`:** Accepts a multipart form with `file` (required), `title`, `description`, `document_type`, `related_entity_type`, `related_entity_id`, `is_public`, `tags`. Allowed file types: PDF, JPEG, PNG, WebP, DOC, DOCX, XLS, XLSX, TXT, CSV. Max file size: 10 MB.
 
 ### Reports (`/api/v1/reports`)
 
-| Method | Endpoint              | Description                              | Auth Required     |
-|--------|-----------------------|------------------------------------------|-------------------|
-| GET    | `/student-performance`| Student performance summary              | Yes (admin/staff) |
-| GET    | `/attendance`         | Attendance statistics                    | Yes (admin/staff) |
-| GET    | `/fee-collection`     | Fee collection summary                   | Yes (admin/staff) |
-| GET    | `/exam-results`       | Exam results statistics                  | Yes (admin/staff) |
-| GET    | `/library-stats`      | Library usage statistics                 | Yes (admin/staff) |
-| GET    | `/hostel-occupancy`   | Hostel occupancy report                  | Yes (admin/staff) |
-| GET    | `/department-wise`    | Department-wise statistics               | Yes (admin/staff) |
+| Method | Endpoint               | Description                 | Auth Required     |
+| ------ | ---------------------- | --------------------------- | ----------------- |
+| GET    | `/student-performance` | Student performance summary | Yes (admin/staff) |
+| GET    | `/attendance`          | Attendance statistics       | Yes (admin/staff) |
+| GET    | `/fee-collection`      | Fee collection summary      | Yes (admin/staff) |
+| GET    | `/exam-results`        | Exam results statistics     | Yes (admin/staff) |
+| GET    | `/library-stats`       | Library usage statistics    | Yes (admin/staff) |
+| GET    | `/hostel-occupancy`    | Hostel occupancy report     | Yes (admin/staff) |
+| GET    | `/department-wise`     | Department-wise statistics  | Yes (admin/staff) |
 
 **GET `/student-performance` query parameters:**
 
-| Parameter       | Type   | Default | Description                |
-|-----------------|--------|---------|----------------------------|
-| `department_id` | int    | null    | Filter by department       |
-| `program_id`    | int    | null    | Filter by program          |
-| `academic_year` | string | null    | Filter by academic year    |
+| Parameter       | Type   | Default | Description             |
+| --------------- | ------ | ------- | ----------------------- |
+| `department_id` | int    | null    | Filter by department    |
+| `program_id`    | int    | null    | Filter by program       |
+| `academic_year` | string | null    | Filter by academic year |
 
 **GET `/attendance` query parameters:**
 
-| Parameter            | Type | Default | Description                |
-|----------------------|------|---------|----------------------------|
-| `department_id`      | int  | null    | Filter by department       |
-| `course_offering_id` | int  | null    | Filter by course offering  |
+| Parameter            | Type | Default | Description               |
+| -------------------- | ---- | ------- | ------------------------- |
+| `department_id`      | int  | null    | Filter by department      |
+| `course_offering_id` | int  | null    | Filter by course offering |
 
 **GET `/fee-collection` query parameters:**
 
-| Parameter       | Type   | Default | Description                |
-|-----------------|--------|---------|----------------------------|
-| `academic_year` | string | null    | Filter by academic year    |
-| `semester`      | int    | null    | Filter by semester         |
-| `department_id` | int    | null    | Filter by department       |
+| Parameter       | Type   | Default | Description             |
+| --------------- | ------ | ------- | ----------------------- |
+| `academic_year` | string | null    | Filter by academic year |
+| `semester`      | int    | null    | Filter by semester      |
+| `department_id` | int    | null    | Filter by department    |
 
 **GET `/exam-results` query parameters:**
 
-| Parameter       | Type   | Default | Description                |
-|-----------------|--------|---------|----------------------------|
-| `academic_year` | string | null    | Filter by academic year    |
-| `semester`      | int    | null    | Filter by semester         |
+| Parameter       | Type   | Default | Description             |
+| --------------- | ------ | ------- | ----------------------- |
+| `academic_year` | string | null    | Filter by academic year |
+| `semester`      | int    | null    | Filter by semester      |
 
 ### Analytics (`/api/v1/analytics`)
 
-| Method | Endpoint              | Description                              | Auth Required     |
-|--------|-----------------------|------------------------------------------|-------------------|
-| GET    | `/dashboard`          | Dashboard summary statistics             | Yes (admin/staff) |
-| GET    | `/trends`             | Enrollment, fee, and attendance trends   | Yes (admin/staff) |
+| Method | Endpoint     | Description                            | Auth Required     |
+| ------ | ------------ | -------------------------------------- | ----------------- |
+| GET    | `/dashboard` | Dashboard summary statistics           | Yes (admin/staff) |
+| GET    | `/trends`    | Enrollment, fee, and attendance trends | Yes (admin/staff) |
 
 **GET `/trends` query parameters:**
 
-| Parameter | Type | Default | Description                    |
-|-----------|------|---------|--------------------------------|
+| Parameter | Type | Default | Description                        |
+| --------- | ---- | ------- | ---------------------------------- |
 | `months`  | int  | 12      | Number of months to analyze (1-60) |
 
 **Dashboard:** Returns total counts for students, faculty, departments, programs, courses, active enrollments, total fees collected, library books, and hostel occupancy percentage.
@@ -717,12 +742,83 @@ Accepts a multipart file upload (JPEG, PNG, or WebP, max 5 MB). Updates the user
 
 ## Role-Based Access
 
-| Role    | Permissions                                                              |
-|---------|--------------------------------------------------------------------------|
-| admin   | Full access to all endpoints                                             |
-| staff   | Full access to all endpoints                                             |
-| faculty | Read access + create/update attendance, assessments, and grades          |
-| student | Read-only access to own data (enrollments, attendance, grades, fees)     |
+| Role    | Permissions                                                          |
+| ------- | -------------------------------------------------------------------- |
+| admin   | Full access to all endpoints                                         |
+| staff   | Full access to all endpoints                                         |
+| faculty | Read access + create/update attendance, assessments, and grades      |
+| student | Read-only access to own data (enrollments, attendance, grades, fees) |
+
+## API Gateway
+
+### Rate Limiting
+
+Redis-backed rate limiting via `slowapi` with a global default of **100 requests/minute** per IP.
+
+Sensitive auth endpoints have tighter limits:
+
+| Endpoint                | Limit     |
+| ----------------------- | --------- |
+| `/auth/register`        | 5/minute  |
+| `/auth/login`           | 10/minute |
+| `/auth/forgot-password` | 5/minute  |
+| `/auth/reset-password`  | 5/minute  |
+| `/auth/verify-email`    | 5/minute  |
+| `/auth/refresh`         | 20/minute |
+
+Authenticated users are tracked by user ID; anonymous requests are tracked by IP. Rate limit errors return HTTP 429 with a `Retry-After` header. If Redis is unavailable, rate limiting fails open (requests are allowed through).
+
+### Request Tracing
+
+Every response includes:
+
+- **`X-Request-ID`** — UUID for the request (accepts client-provided ID for distributed tracing)
+- **`X-Process-Time`** — Server processing time in seconds
+
+### Structured Logging
+
+All requests are logged as JSON to stdout with: `timestamp`, `level`, `method`, `path`, `status_code`, `duration_ms`, `request_id`, `user_id`, `client_ip`, `user_agent`. Health check and root endpoints are excluded from logs.
+
+### Unified Error Responses
+
+All errors follow a consistent JSON format:
+
+```json
+{
+  "success": false,
+  "detail": "Human-readable message",
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed",
+    "details": [
+      {
+        "field": "body.email",
+        "message": "value is not a valid email address",
+        "type": "value_error"
+      }
+    ],
+    "request_id": "uuid"
+  }
+}
+```
+
+Error codes: `BAD_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `VALIDATION_ERROR`, `RATE_LIMIT_EXCEEDED`, `INTERNAL_SERVER_ERROR`.
+
+### Health Check
+
+`GET /health` checks PostgreSQL and Redis connectivity:
+
+```json
+{
+  "status": "healthy",
+  "checks": {
+    "database": { "status": "healthy" },
+    "redis": { "status": "healthy" }
+  }
+}
+```
+
+Returns HTTP 200 if all checks pass, HTTP 503 with `"status": "degraded"` if any dependency is down.
 
 ## Security
 
@@ -807,6 +903,7 @@ SMTP_FROM_EMAIL=your-email@gmail.com
 # App
 APP_ENV=development
 CORS_ORIGINS=http://localhost:3000
+LOG_LEVEL=INFO
 ```
 
 > `JWT_SECRET_KEY` is **required** — the app raises a `RuntimeError` on startup if it is not set. Generate one with: `python -c "import secrets; print(secrets.token_urlsafe(64))"`
@@ -816,7 +913,7 @@ CORS_ORIGINS=http://localhost:3000
 ### Installation
 
 ```bash
-pip install fastapi uvicorn sqlalchemy asyncpg psycopg2-binary pydantic[email] python-jose[cryptography] passlib[bcrypt] python-dotenv redis python-multipart openpyxl
+pip install fastapi uvicorn sqlalchemy asyncpg psycopg2-binary pydantic[email] python-jose[cryptography] passlib[bcrypt] python-dotenv redis python-multipart openpyxl slowapi
 ```
 
 ### Run
@@ -829,17 +926,17 @@ The server starts at `http://localhost:8000`. API docs available at `http://loca
 
 ## Database Modules
 
-| Module         | Entities                                              |
-|----------------|-------------------------------------------------------|
-| Users          | Users, Admin Staff, Faculty, Students, Parents        |
-| Academics      | Universities, Departments, Programs, Courses          |
-| Enrollment     | Enrollments, Course Offerings, Program Courses        |
-| Scheduling     | Class Schedules, Timetable Slots                       |
-| Examination    | Exam Schedules, Exam Timetables                        |
-| Assessment     | Assessments, Grades, Semester Results                 |
-| Attendance     | Attendance, Attendance Summary                        |
-| Finance        | Fee Structures, Fee Payments                          |
-| Library        | Library Books, Book Issues                            |
-| Hostel         | Hostels, Hostel Rooms, Hostel Allocations             |
-| Communication  | Notifications, User Notifications                     |
-| Administration | Documents, Audit Logs, System Logs                     |
+| Module         | Entities                                       |
+| -------------- | ---------------------------------------------- |
+| Users          | Users, Admin Staff, Faculty, Students, Parents |
+| Academics      | Universities, Departments, Programs, Courses   |
+| Enrollment     | Enrollments, Course Offerings, Program Courses |
+| Scheduling     | Class Schedules, Timetable Slots               |
+| Examination    | Exam Schedules, Exam Timetables                |
+| Assessment     | Assessments, Grades, Semester Results          |
+| Attendance     | Attendance, Attendance Summary                 |
+| Finance        | Fee Structures, Fee Payments                   |
+| Library        | Library Books, Book Issues                     |
+| Hostel         | Hostels, Hostel Rooms, Hostel Allocations      |
+| Communication  | Notifications, User Notifications              |
+| Administration | Documents, Audit Logs, System Logs             |

@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from utils.jwt_handler import verify_token
 from utils.token_blacklist import is_token_blacklisted
@@ -7,6 +7,7 @@ bearer_scheme = HTTPBearer()
 
 
 async def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> dict:
     token = credentials.credentials
@@ -31,5 +32,7 @@ async def get_current_user(
     user_type = payload["user_type"]
     role_map = {"teacher": "faculty"}
     payload["role"] = role_map.get(user_type, user_type)
+
+    request.state.user_id = payload["sub"]
 
     return payload
